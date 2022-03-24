@@ -21,7 +21,7 @@ cmake_minimum_required(VERSION 3.5.1)
 
 project(wifs C CXX)
 
-include(../wi-AFS/common.cmake)
+include(../Strongly-Consistent-FS/common.cmake)
 
 # Proto file
 get_filename_component(wifs_proto "protos/wifs.proto" ABSOLUTE)

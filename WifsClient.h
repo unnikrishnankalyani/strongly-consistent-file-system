@@ -32,9 +32,9 @@ using wifs::MkdirRes;
 using wifs::RmdirReq;
 using wifs::RmdirRes;
 
-class AfsClient {
+class WifsClient {
     public:
-        AfsClient(std::shared_ptr<Channel> channel) : stub_(WIFS::NewStub(channel)) {}
+        WifsClient(std::shared_ptr<Channel> channel) : stub_(WIFS::NewStub(channel)) {}
 
     int interval = 1000;
     int retries = 1;

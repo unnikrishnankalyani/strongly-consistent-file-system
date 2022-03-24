@@ -37,18 +37,12 @@ class WifsServiceImplementation final : public WIFS:: Service{
       Status wifs_WRITE(ServerContext* context, const WriteReq* request,
                WriteRes* reply) override {
 
-        int fd;
         struct stat info;
 
-        char path[MAX_PATH_LENGTH] = getServerPath(request->path().c_str());
+        const auto path = getServerPath(std::to_string(request->address()));
         printf("WIFS server PATH FETCH: %s\n", path);
 
-        fd = open(path, O_RDWR);
-
-        if(fd == -1) {
-            reply->set_error(-1);
-            return Status::OK;
-        }
+        const int fd = ::open(path.c_str(), O_RDWR);
 
         int rc = write(fd, (void*) request->buf().c_str(), 4096);
  	    reply->set_status(rc);
@@ -58,22 +52,17 @@ class WifsServiceImplementation final : public WIFS:: Service{
     Status wifs_READ(ServerContext* context, const ReadReq* request,
                ReadRes* reply) override {
 
-        int fd;
+       
         struct stat info;
 
-        char path[MAX_PATH_LENGTH] = getServerPath(request->path().c_str());
+        const auto path = getServerPath(std::to_string(request->address()));
         printf("WIFS server PATH FETCH: %s\n", path);
 
-        fd = open(path, O_RDWR);
-
-        if(fd == -1) {
-            reply->set_error(-1);
-            return Status::OK;
-        }
-
+        const int fd = ::open(path.c_str(), O_RDWR);
+	char* buf;
         int rc = read(fd, (void*) buf, 4096);
         std::string buffer(buf);
-        reply->set_status(rc);
+        reply->set_status(rc);	
         reply->set_buf(buffer);
         return Status::OK;
     
