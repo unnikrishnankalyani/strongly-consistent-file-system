@@ -11,11 +11,11 @@ static struct options {
 } options;
 
 int do_read(int address){
-	return wifsclient->wifs_READ(address);
+	return options.wifsclient->wifs_READ(address);
 }
 
 int do_write(int address, char buf[4096]){
-	return wifsclient->wifs_WRITE(address, buf);
+	return options.wifsclient->wifs_WRITE(address, buf);
 }
 
 void tester(){

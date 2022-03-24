@@ -13,24 +13,10 @@ using grpc::ClientContext;
 using grpc::ClientReader;
 
 using wifs::WIFS;
-using wifs::CreateReq;
-using wifs::CreateRes;
-using wifs::LsReq;
-using wifs::LsRes;
-using wifs::FetchRequest;
-using wifs::FetchReply;
-using wifs::GetattrReq;
-using wifs::GetattrRes;
-using wifs::StoreReq;
-using wifs::StoreRes;
-using wifs::UnlinkReq;
-using wifs::UnlinkRes;
-using wifs::ChmodReq;
-using wifs::ChmodRes;
-using wifs::MkdirReq;
-using wifs::MkdirRes;
-using wifs::RmdirReq;
-using wifs::RmdirRes;
+using wifs::ReadReq;
+using wifs::ReadRes;
+using wifs::WriteReq;
+using wifs::WriteRes;
 
 class WifsClient {
     public:
@@ -42,10 +28,10 @@ class WifsClient {
     int wifs_READ(int address)
     {
         ClientContext context;
-        req request;
-        res reply;
+        ReadReq request;
+        ReadRes reply;
         request.set_address(address);
-        Status status = stub_->s_read(&context, request, &reply);
+        Status status = stub_->wifs_READ(&context, request, &reply);
         const auto ret = reply.buf();
         std::cout << ret << std::endl;
         if (status.ok())
@@ -57,11 +43,11 @@ class WifsClient {
     int wifs_WRITE(int address, char buf[4096])
     {
         ClientContext context;
-        req request;
-        res reply;
+        WriteReq request;
+        WriteRes reply;
         request.set_address(address);
         request.set_buf(s);
-        Status status =  stub_->s_write(&context, request ,&reply);
+        Status status =  stub_->wifs_WRITE(&context, request ,&reply);
         if (status.ok())
             return 0;
         else
