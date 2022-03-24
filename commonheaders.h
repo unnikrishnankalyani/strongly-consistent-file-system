@@ -28,5 +28,5 @@ long get_time(){
     return ts->tv_nsec;
 }
 std::string getServerPath(std::string address) {
-    return "/users/oahmed4/.server/" + address;
+	return  "/users/oahmed4/.server/file_"+address;
 }
