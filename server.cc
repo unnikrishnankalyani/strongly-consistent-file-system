@@ -40,9 +40,9 @@ class WifsServiceImplementation final : public WIFS:: Service{
         struct stat info;
 
         const auto path = getServerPath(std::to_string(request->address()));
-        std::cout << "WIFS server PATH FETCH: "<< path <<std::endl;
+        std::cout << "WIFS server PATH WRITE TO: "<< path <<std::endl;
 
-        const int fd = ::open(path.c_str(), O_RDWR);
+        const int fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG);
 
         int rc = write(fd, (void*) request->buf().c_str(), 4096);
  	    reply->set_status(rc);
@@ -56,7 +56,7 @@ class WifsServiceImplementation final : public WIFS:: Service{
         struct stat info;
 
         const auto path = getServerPath(std::to_string(request->address()));
-	std::cout << "WIFS server PATH FETCH: "<< path <<std::endl;
+	std::cout << "WIFS server PATH READ: "<< path <<std::endl;
 
         const int fd = ::open(path.c_str(), O_RDWR);
 	char* buf;
