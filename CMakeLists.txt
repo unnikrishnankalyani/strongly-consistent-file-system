@@ -12,46 +12,46 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# cmake build file for C++ afs example.
+# cmake build file for C++ wifs example.
 # Assumes protobuf and gRPC have been installed using cmake.
 # See cmake_externalproject/CMakeLists.txt for all-in-one cmake build
-# that automatically builds all the dependencies before building afs.
+# that automatically builds all the dependencies before building wifs.
 
 cmake_minimum_required(VERSION 3.5.1)
 
-project(afs C CXX)
+project(wifs C CXX)
 
 include(../wi-AFS/common.cmake)
 
 # Proto file
-get_filename_component(afs_proto "protos/afs.proto" ABSOLUTE)
-get_filename_component(afs_proto_path "${afs_proto}" PATH)
+get_filename_component(wifs_proto "protos/wifs.proto" ABSOLUTE)
+get_filename_component(wifs_proto_path "${wifs_proto}" PATH)
 
 # Generated sources
-set(afs_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/afs.pb.cc")
-set(afs_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/afs.pb.h")
-set(afs_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/afs.grpc.pb.cc")
-set(afs_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/afs.grpc.pb.h")
+set(wifs_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/wifs.pb.cc")
+set(wifs_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/wifs.pb.h")
+set(wifs_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/wifs.grpc.pb.cc")
+set(wifs_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/wifs.grpc.pb.h")
 add_custom_command(
-      OUTPUT "${afs_proto_srcs}" "${afs_proto_hdrs}" "${afs_grpc_srcs}" "${afs_grpc_hdrs}"
+      OUTPUT "${wifs_proto_srcs}" "${wifs_proto_hdrs}" "${wifs_grpc_srcs}" "${wifs_grpc_hdrs}"
       COMMAND ${_PROTOBUF_PROTOC}
       ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}"
         --cpp_out "${CMAKE_CURRENT_BINARY_DIR}"
-        -I "${afs_proto_path}"
+        -I "${wifs_proto_path}"
         --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
-        "${afs_proto}"
-      DEPENDS "${afs_proto}")
+        "${wifs_proto}"
+      DEPENDS "${wifs_proto}")
 
 # Include generated *.pb.h files
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 include_directories("/users/monshiva/fuse-3.10.5/include")
-# afs_grpc_proto
-add_library(afs_grpc_proto
-  ${afs_grpc_srcs}
-  ${afs_grpc_hdrs}
-  ${afs_proto_srcs}
-  ${afs_proto_hdrs})
-target_link_libraries(afs_grpc_proto
+# wifs_grpc_proto
+add_library(wifs_grpc_proto
+  ${wifs_grpc_srcs}
+  ${wifs_grpc_hdrs}
+  ${wifs_proto_srcs}
+  ${wifs_proto_hdrs})
+target_link_libraries(wifs_grpc_proto
   ${_REFLECTION}
   ${_GRPC_GRPCPP}
   ${_PROTOBUF_LIBPROTOBUF})
@@ -60,7 +60,7 @@ target_link_libraries(afs_grpc_proto
 add_executable(client "client.cc")
 target_link_libraries(client
   "/users/monshiva/fuse-3.10.5/build/lib/libfuse3.so"	
-  afs_grpc_proto
+  wifs_grpc_proto
   ${_REFLECTION}
   ${_GRPC_GRPCPP}
   ${_PROTOBUF_LIBPROTOBUF})
@@ -68,7 +68,7 @@ target_link_libraries(client
 # server
 add_executable(server "server.cc")
 target_link_libraries(server
-  afs_grpc_proto
+  wifs_grpc_proto
   ${_REFLECTION}
   ${_GRPC_GRPCPP}
   ${_PROTOBUF_LIBPROTOBUF})
