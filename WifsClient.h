@@ -46,7 +46,8 @@ class WifsClient {
         WriteReq request;
         WriteRes reply;
         request.set_address(address);
-        request.set_buf(s);
+        std::string s(buf);
+	request.set_buf(s);
         Status status =  stub_->wifs_WRITE(&context, request ,&reply);
         if (status.ok())
             return 0;

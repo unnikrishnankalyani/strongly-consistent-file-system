@@ -44,7 +44,6 @@ add_custom_command(
 
 # Include generated *.pb.h files
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
-include_directories("/users/monshiva/fuse-3.10.5/include")
 # wifs_grpc_proto
 add_library(wifs_grpc_proto
   ${wifs_grpc_srcs}
@@ -59,7 +58,6 @@ target_link_libraries(wifs_grpc_proto
 # client
 add_executable(client "client.cc")
 target_link_libraries(client
-  "/users/monshiva/fuse-3.10.5/build/lib/libfuse3.so"	
   wifs_grpc_proto
   ${_REFLECTION}
   ${_GRPC_GRPCPP}

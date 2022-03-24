@@ -90,8 +90,6 @@ void RunWifsServer(std::string ipadd) {
 int main(int argc, char** argv) {
     std::string ipadd = "localhost";
 
-    strncpy(root_path, argv[1], MAX_PATH_LENGTH);
-    std::cout << "wifs path : " << root_path << std::endl;
     RunWifsServer(ipadd);
     
     return 0;
