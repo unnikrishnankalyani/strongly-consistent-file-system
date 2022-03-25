@@ -128,10 +128,9 @@ int append_write_request(const WriteReq* request) {
         log_queue.push(write_request);
         sem_post(&sem_log_queue);
     }
-    
-    sem_post(&mutex_queue);
     sem_post(&sem_queue);
-
+    sem_post(&mutex_queue);
+    
     return future_obj.get();
 }
 
