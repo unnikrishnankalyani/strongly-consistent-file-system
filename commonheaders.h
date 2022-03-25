@@ -23,6 +23,6 @@ long get_time() {
     clock_gettime(CLOCK_MONOTONIC, ts);
     return ts->tv_nsec;
 }
-std::string getServerPath(std::string address) {
-    return "/users/oahmed4/.server/file_" + address;
+std::string getServerPath(std::string address, int machine_id) {
+    return "/users/oahmed4/.server" + std::to_string(machine_id) + "/file_" + address;
 }
