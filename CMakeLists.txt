@@ -26,6 +26,8 @@ include(../Strongly-Consistent-FS/common.cmake)
 # Proto file
 get_filename_component(wifs_proto "protos/wifs.proto" ABSOLUTE)
 get_filename_component(wifs_proto_path "${wifs_proto}" PATH)
+get_filename_component(primarybackup_proto "protos/primarybackup.proto" ABSOLUTE)
+get_filename_component(primarybackup_proto_path "${primarybackup_proto}" PATH)
 
 # Generated sources
 set(wifs_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/wifs.pb.cc")
@@ -42,6 +44,20 @@ add_custom_command(
         "${wifs_proto}"
       DEPENDS "${wifs_proto}")
 
+set(primarybackup_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/primarybackup.pb.cc")
+set(primarybackup_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/primarybackup.pb.h")
+set(primarybackup_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/primarybackup.grpc.pb.cc")
+set(primarybackup_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/primarybackup.grpc.pb.h")
+add_custom_command(
+      OUTPUT "${primarybackup_proto_srcs}" "${primarybackup_proto_hdrs}" "${primarybackup_grpc_srcs}" "${primarybackup_grpc_hdrs}"
+      COMMAND ${_PROTOBUF_PROTOC}
+      ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}"
+        --cpp_out "${CMAKE_CURRENT_BINARY_DIR}"
+        -I "${primarybackup_proto_path}"
+        --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
+        "${primarybackup_proto}"
+      DEPENDS "${primarybackup_proto}")
+
 # Include generated *.pb.h files
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 # wifs_grpc_proto
@@ -55,9 +71,22 @@ target_link_libraries(wifs_grpc_proto
   ${_GRPC_GRPCPP}
   ${_PROTOBUF_LIBPROTOBUF})
 
+add_library(primarybackup_grpc_proto
+  ${primarybackup_grpc_srcs}
+  ${primarybackup_grpc_hdrs}
+  ${primarybackup_proto_srcs}
+  ${primarybackup_proto_hdrs})
+target_link_libraries(primarybackup_grpc_proto
+  ${_REFLECTION}
+  ${_GRPC_GRPCPP}
+  ${_PROTOBUF_LIBPROTOBUF})
+
+find_library(PTHREAD_LIB  NAMES pthread)
+
 # client
 add_executable(client "client.cc")
 target_link_libraries(client
+  ${PTHREAD_LIB}
   wifs_grpc_proto
   ${_REFLECTION}
   ${_GRPC_GRPCPP}
@@ -66,7 +95,9 @@ target_link_libraries(client
 # server
 add_executable(server "server.cc")
 target_link_libraries(server
+  ${PTHREAD_LIB}
   wifs_grpc_proto
+  primarybackup_grpc_proto
   ${_REFLECTION}
   ${_GRPC_GRPCPP}
   ${_PROTOBUF_LIBPROTOBUF})
