@@ -1,60 +1,54 @@
 #include <grpc++/grpc++.h>
-#include "wifs.grpc.pb.h"
-#include "commonheaders.h"
 #include <grpc/impl/codegen/status.h>
 #include <grpcpp/impl/codegen/status_code_enum.h>
+
 #include <chrono>
 #include <thread>
 
+#include "commonheaders.h"
+#include "wifs.grpc.pb.h"
+
 using grpc::Channel;
-using grpc::Status;
-using grpc::StatusCode;
 using grpc::ClientContext;
 using grpc::ClientReader;
+using grpc::Status;
+using grpc::StatusCode;
 
-using wifs::WIFS;
 using wifs::ReadReq;
 using wifs::ReadRes;
+using wifs::WIFS;
 using wifs::WriteReq;
 using wifs::WriteRes;
 
+#define BLOCK_SIZE 4096
+
 class WifsClient {
-    public:
-        WifsClient(std::shared_ptr<Channel> channel) : stub_(WIFS::NewStub(channel)) {}
+   public:
+    WifsClient(std::shared_ptr<Channel> channel) : stub_(WIFS::NewStub(channel)) {}
 
     int interval = 1000;
     int retries = 1;
 
-    int wifs_READ(int address)
-    {
+    int wifs_READ(int address, char buf[BLOCK_SIZE]) {
         ClientContext context;
         ReadReq request;
         ReadRes reply;
         request.set_address(address);
         Status status = stub_->wifs_READ(&context, request, &reply);
-        const auto ret = reply.buf();
-        std::cout << ret << std::endl;
-        if (status.ok())
-                    return 0;
-            else
-                    return -ENOENT;
+        strncpy(buf, reply.buf().c_str(), BLOCK_SIZE);
+        return status.ok() ? 0 : -1;
     }
 
-    int wifs_WRITE(int address, char buf[4096])
-    {
+    int wifs_WRITE(int address, char buf[BLOCK_SIZE]) {
         ClientContext context;
         WriteReq request;
         WriteRes reply;
         request.set_address(address);
-        std::string s(buf);
-	request.set_buf(s);
-        Status status =  stub_->wifs_WRITE(&context, request ,&reply);
-        if (status.ok())
-            return 0;
-        else
-            return -ENOENT;
-        }
-    
-    private:
-        std::unique_ptr<WIFS::Stub> stub_;
+        request.set_buf(std::string(buf));
+        Status status = stub_->wifs_WRITE(&context, request, &reply);
+        return status.ok() ? 0 : -1;
+    }
+
+   private:
+    std::unique_ptr<WIFS::Stub> stub_;
 };
