@@ -48,6 +48,8 @@ using primarybackup::WriteResponse;
 char root_path[MAX_PATH_LENGTH];
 std::string server_state = "INIT";
 
+int server_id = 0;
+
 // semaphore for checking if write queue has elements to read
 sem_t sem_queue;
 
@@ -61,6 +63,8 @@ sem_t mutex_queue;
 sem_t mutex_log_queue;
 
 bool other_node_syncing = false;
+
+std::unique_ptr<PrimaryBackup::Stub> client_stub_;
 
 class Node {
    public:
@@ -83,7 +87,7 @@ void local_write(void) {
         write_queue.pop();
 
         const WriteReq* request = node->req;
-        const auto path = getServerPath(std::to_string(request->address()));
+        const auto path = getServerPath(std::to_string(request->address()), server_id);
         std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
 
         const int fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG);
@@ -99,8 +103,15 @@ void local_write(void) {
 int remote_write(const WriteRequest& write_req) {
     // make grpc call to other node ONLY if (loq_queue.empty() && !other_node_syncing)
     // and if that fails, log write operation.
-
-    return -1;
+    int pending_writes = 0;
+    sem_getvalue(&sem_log_queue, &pending_writes);
+    if (pending_writes || other_node_syncing) return -1;
+    
+    WriteResponse reply;
+    ClientContext context;
+    Status status = client_stub_->Write(&context, write_req, &reply);
+    // assuming the write never fails when the connection goes through. 
+    return status.ok() ? 0 : -1;
 }
 
 int append_write_request(const WriteReq* request) {
@@ -134,7 +145,9 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
     Status Write(ServerContext* context, const WriteRequest* request, WriteResponse* reply) {
         std::promise<int> promise_obj;
         std::future<int> future_obj = promise_obj.get_future();
-        Node node(request, promise_obj);
+        
+        // should have used the same proto to share write request.
+        Node node((WriteReq*) request, promise_obj);
 
         sem_wait(&mutex_queue);
         write_queue.push(&node);
@@ -184,7 +197,7 @@ class WifsServiceImplementation final : public WIFS::Service {
                      ReadRes* reply) override {
         struct stat info;
 
-        const auto path = getServerPath(std::to_string(request->address()));
+        const auto path = getServerPath(std::to_string(request->address()), server_id);
         std::cout << "WIFS server PATH READ: " << path << std::endl;
 
         const int fd = ::open(path.c_str(), O_RDONLY);
@@ -230,21 +243,73 @@ void run_pb_server(std::string other_node_address) {
     server->Wait();
 }
 
+void init_connection_with_other_node(std::string other_node_address) {
+    client_stub_ = PrimaryBackup::NewStub(grpc::CreateChannel(other_node_address, grpc::InsecureChannelCredentials()));
+}
+
+void update_state_to_latest() {
+    HeartBeat request;
+    ClientContext context;
+    std::unique_ptr<ClientReader<WriteRequest> > reader(client_stub_->Sync(&context, request));
+    WriteRequest reply;
+    while (reader->Read(&reply)) {
+        // don't use the write queue since that will add an overhead of populating a promise obj each time. 
+        // sync write should be fast, and not like write in normal operation
+        const auto path = getServerPath(std::to_string(reply.blk_address()), server_id);
+        std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
+
+        const int fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG);
+        if (fd == -1) std::cout << "sync open failed " << strerror(errno) << "\n";
+
+        int rc = write(fd, (void*)reply.buffer().c_str(), BLOCK_SIZE);
+        if (rc == -1) std::cout << "sync write failed " << strerror(errno) << "\n";
+    }
+    
+    Status status = reader->Finish();
+    if (!status.ok()) {
+        // implies that the other node is not up
+        server_state = "READY";
+        return;
+    }
+    
+    // now check if there are any pending log entries that the other node received when we were busy doing the above sync.
+    HeartBeat pending_writes;
+    ClientContext new_context;
+    client_stub_->CheckSync(&new_context, request, &pending_writes);
+    if(!status.ok() || pending_writes.state() == primarybackup::HeartBeat_State_READY) {
+        // implies that the other node crashed in between when status not okay
+        server_state = "READY";
+        return;
+    }
+    
+    // still has writes pending
+    return update_state_to_latest();
+}
+
 int main(int argc, char** argv) {
     sem_init(&sem_queue, 0, 0);
-    sem_init(&mutex_queue, 0, 0);
-    // if (argc == 1) {
-    //     std::cout << "address of other node not given\n";
-    //     exit(1);
-    // }
+    sem_init(&mutex_queue, 0, 1);
+    sem_init(&mutex_log_queue, 0, 1);
+    if (argc < 3) {
+        std::cout << "address of other node & machine id not given\n";
+        exit(1);
+    }
 
-    // std::string other_node_address(argv[1]);
-    // std::cout << "got other node's address as " << other_node_address << "\n";
+    std::string other_node_address(argv[1]);
+    std::cout << "got other node's address as " << other_node_address << "\n";
 
-    // init_connection_with_other_node(other_node_address);
+    server_id = atoi(argv[2]);
+    std::cout << "got machine id as " << server_id << "\n";
+
+    init_connection_with_other_node(other_node_address);
+    update_state_to_latest();
+    std::cout<<"synced to latest state\n";
     std::thread writer_thread(local_write);
+    std::thread internal_server(run_pb_server, other_node_address);
+    
     run_wifs_server();
-    // run_pb_server(other_node_address);
-    writer_thread.join();
+    
+    // internal_server.join();
+    // writer_thread.join();
     return 0;
 }
