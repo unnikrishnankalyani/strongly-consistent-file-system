@@ -41,7 +41,7 @@ using wifs::WriteReq;
 using wifs::WriteRes;
 using wifs::HeartBeat;
 
-using primarybackup::HeartBeat;
+using primarybackup::HeartBeatSync;
 using primarybackup::PrimaryBackup;
 using primarybackup::WriteRequest;
 using primarybackup::WriteResponse;
@@ -155,7 +155,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
         return Status::OK;
     }
 
-    Status Sync(ServerContext* context, const HeartBeat* request, ServerWriter<WriteRequest>* writer) {
+    Status Sync(ServerContext* context, const HeartBeatSync* request, ServerWriter<WriteRequest>* writer) {
         int pending_writes = 0;
         sem_getvalue(&sem_log_queue, &pending_writes);
         if (pending_writes) other_node_syncing = true;
@@ -170,10 +170,10 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
         return Status::OK;
     }
 
-    Status CheckSync(ServerContext* context, const HeartBeat* request, HeartBeat* reply) {
+    Status CheckSync(ServerContext* context, const HeartBeatSync* request, HeartBeatSync* reply) {
         int pending_writes = 0;
         sem_getvalue(&sem_log_queue, &pending_writes);
-        reply->set_state(pending_writes ? primarybackup::HeartBeat_State_INIT : primarybackup::HeartBeat_State_READY);
+        reply->set_state(pending_writes ? primarybackup::HeartBeatSync_State_INIT : primarybackup::HeartBeatSync_State_READY);
         if (!pending_writes) other_node_syncing = false;
         return Status::OK;
     }
@@ -254,7 +254,7 @@ void init_connection_with_other_node(std::string other_node_address) {
 }
 
 void update_state_to_latest() {
-    HeartBeat request;
+    HeartBeatSync request;
     ClientContext context;
     std::unique_ptr<ClientReader<WriteRequest> > reader(client_stub_->Sync(&context, request));
     WriteRequest reply;
@@ -279,10 +279,10 @@ void update_state_to_latest() {
     }
     
     // now check if there are any pending log entries that the other node received when we were busy doing the above sync.
-    HeartBeat pending_writes;
+    HeartBeatSync pending_writes;
     ClientContext new_context;
     client_stub_->CheckSync(&new_context, request, &pending_writes);
-    if(!status.ok() || pending_writes.state() == primarybackup::HeartBeat_State_READY) {
+    if(!status.ok() || pending_writes.state() == primarybackup::HeartBeatSync_State_READY) {
         // implies that the other node crashed in between when status not okay
         server_state = "READY";
         return;

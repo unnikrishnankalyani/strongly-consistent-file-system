@@ -7,14 +7,14 @@ service PrimaryBackup {
     
     // when the backup comes up, it initiates a sync 
     // operation and gets it state up to date. 
-    rpc Sync(HeartBeat) returns (stream WriteRequest) {}
+    rpc Sync(HeartBeatSync) returns (stream WriteRequest) {}
 
     // return heartbeat with state INIT if there are 
     // pending items in the log. 
-    rpc CheckSync(HeartBeat) returns (HeartBeat) {}
+    rpc CheckSync(HeartBeatSync) returns (HeartBeatSync) {}
 }
 
-message HeartBeat {
+message HeartBeatSync {
     enum State {
         // can be used when doing the catch up work after failure
         INIT = 0;
