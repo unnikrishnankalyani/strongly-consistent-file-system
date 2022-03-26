@@ -213,8 +213,14 @@ class WifsServiceImplementation final : public WIFS::Service {
     }
 };
 
-void run_wifs_server() {
-    std::string address("localhost:50051");
+void run_wifs_server(int server_id) {
+    std::string node_address;
+    if (server_id ==1){
+        node_address = ip_server1;
+    } else {
+        node_address = ip_server2;
+    }
+    std::string address(node_address);
     WifsServiceImplementation service;
     ServerBuilder wifsServer;
     wifsServer.AddListeningPort(address, grpc::InsecureServerCredentials());
@@ -225,6 +231,7 @@ void run_wifs_server() {
 }
 
 void run_pb_server(int server_id) {
+    std::string node_address;
     if (server_id ==1){
         node_address = ip_server1;
     } else {
@@ -309,7 +316,7 @@ int main(int argc, char** argv) {
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server, server_id);
     
-    run_wifs_server();
+    run_wifs_server(server_id);
     
     // internal_server.join();
     // writer_thread.join();
