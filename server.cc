@@ -224,13 +224,13 @@ void run_wifs_server() {
     server->Wait();
 }
 
-void run_pb_server(std::string other_node_address) {
-    std::string cur_port = "50052";
-    // all this is required when you are trying to run both primary and backup on the same machine.
-    // just comment out the below line when running primary and backup on different machines.
-    if (other_node_address.substr(other_node_address.length() - 5, 5) == "50052") cur_port = "50053";
-
-    std::string address("localhost:" + cur_port);
+void run_pb_server(int server_id) {
+    if (server_id ==1){
+        node_address = ip_server1;
+    } else {
+        node_address = ip_server2;
+    }
+    std::string address(node_address);
     PrimarybackupServiceImplementation service;
     ServerBuilder pbServer;
     pbServer.AddListeningPort(address, grpc::InsecureServerCredentials());
@@ -287,22 +287,27 @@ int main(int argc, char** argv) {
     sem_init(&sem_queue, 0, 0);
     sem_init(&mutex_queue, 0, 1);
     sem_init(&mutex_log_queue, 0, 1);
-    if (argc < 3) {
-        std::cout << "address of other node & machine id not given\n";
+    if (argc < 2) {
+        std::cout << "Machine id not given\n";
         exit(1);
     }
 
-    std::string other_node_address(argv[1]);
-    std::cout << "got other node's address as " << other_node_address << "\n";
-
-    server_id = atoi(argv[2]);
+    server_id = atoi(argv[1]);
     std::cout << "got machine id as " << server_id << "\n";
+
+    std::string other_node_address;
+    if (server_id ==1){
+        other_node_address = ip_server2;
+    } else {
+        other_node_address = ip_server1;
+    }
+    std::cout << "got other node's address as " << other_node_address << "\n";
 
     init_connection_with_other_node(other_node_address);
     update_state_to_latest();
     std::cout<<"synced to latest state\n";
     std::thread writer_thread(local_write);
-    std::thread internal_server(run_pb_server, other_node_address);
+    std::thread internal_server(run_pb_server, server_id);
     
     run_wifs_server();
     
