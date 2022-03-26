@@ -185,9 +185,8 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
 class WifsServiceImplementation final : public WIFS::Service {
     Status wifs_WRITE(ServerContext* context, const WriteReq* request,
                       WriteRes* reply) override {
-        struct stat info;
+                          
         reply->set_status(-1);
-
         if (append_write_request(request) == -1) return Status::OK;
         reply->set_status(0);
         return Status::OK;
@@ -195,8 +194,6 @@ class WifsServiceImplementation final : public WIFS::Service {
 
     Status wifs_READ(ServerContext* context, const ReadReq* request,
                      ReadRes* reply) override {
-        struct stat info;
-
         const auto path = getServerPath(std::to_string(request->address()), server_id);
         std::cout << "WIFS server PATH READ: " << path << std::endl;
 

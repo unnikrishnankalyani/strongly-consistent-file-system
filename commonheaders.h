@@ -10,19 +10,21 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
-#include <time.h>
 #include <unistd.h>
 
 #include <iostream>
-//#include <unistd.h>
 
-#define HTABLESIZE 100
+static struct config {
+    std::string ip_master;
+    std::string ip_server1;
+    std::string ip_server2;
+} config;
 
-long get_time() {
-    struct timespec* ts;
-    clock_gettime(CLOCK_MONOTONIC, ts);
-    return ts->tv_nsec;
-}
+//fix this
+config.ip_master = "localhost:50054";
+config.ip_server1 = "localhost:50051";
+config.ip_server2 = "localhost:50051";
+
 std::string getServerPath(std::string address, int machine_id) {
     return "/users/oahmed4/.server" + std::to_string(machine_id) + "/file_" + address;
 }
