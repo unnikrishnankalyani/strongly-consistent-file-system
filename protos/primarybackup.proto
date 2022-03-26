@@ -14,6 +14,17 @@ service PrimaryBackup {
     rpc CheckSync(HeartBeat) returns (HeartBeat) {}
 }
 
+message HeartBeat {
+    enum State {
+        // can be used when doing the catch up work after failure
+        INIT = 0;
+
+        // when in normal operation
+        READY = 1;
+    }
+    State state = 1;
+}
+
 message WriteRequest {
     int32 blk_address = 1;
 
