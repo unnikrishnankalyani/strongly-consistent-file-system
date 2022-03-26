@@ -39,9 +39,9 @@ using wifs::ReadRes;
 using wifs::WIFS;
 using wifs::WriteReq;
 using wifs::WriteRes;
+using wifs::HeartBeat;
+using wifs::PrimaryBackup;
 
-using primarybackup::HeartBeat;
-using primarybackup::PrimaryBackup;
 using primarybackup::WriteRequest;
 using primarybackup::WriteResponse;
 
