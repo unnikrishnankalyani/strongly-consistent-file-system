@@ -59,7 +59,7 @@ sem_t sem_log_queue;
 
 // used to achieve mutual exclusion during enqueue operation on write queue as well as log queue
 sem_t mutex_queue;
-
+sem_t mutex_log_queue;
 
 bool other_node_syncing = false;
 
@@ -313,7 +313,12 @@ int main(int argc, char** argv) {
     std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server, server_id);
-
+    
+    //Create server path if it doesn't exist
+    DIR* dir = opendir(getServerDir(server_id).c_str());
+    if (ENOENT == errno){
+        mkdir(getServerDir(server_id).c_str(),0777);
+    }
     run_wifs_server(server_id);
 
     // internal_server.join();
