@@ -31,7 +31,7 @@ void tester() {
 }
 
 int main(int argc, char* argv[]) {
-    options.wifsclient = new WifsClient(grpc::CreateChannel(config.ip_master, grpc::InsecureChannelCredentials()));
+    options.wifsclient = new WifsClient(grpc::CreateChannel(ip_master, grpc::InsecureChannelCredentials()));
     tester();
     return 0;
 }
