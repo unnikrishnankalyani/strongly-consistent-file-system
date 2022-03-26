@@ -3,8 +3,6 @@ syntax = "proto3";
 package primarybackup;
 
 service PrimaryBackup {
-    rpc Ping(HeartBeat) returns (HeartBeat) {}
-    
     rpc Write(WriteRequest) returns (WriteResponse) {}
     
     // when the backup comes up, it initiates a sync 
@@ -14,17 +12,6 @@ service PrimaryBackup {
     // return heartbeat with state INIT if there are 
     // pending items in the log. 
     rpc CheckSync(HeartBeat) returns (HeartBeat) {}
-}
-
-message HeartBeat {
-    enum State {
-        // can be used when doing the catch up work after failure
-        INIT = 0;
-
-        // when in normal operation
-        READY = 1;
-    }
-    State state = 1;
 }
 
 message WriteRequest {

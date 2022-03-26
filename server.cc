@@ -137,10 +137,6 @@ int append_write_request(const WriteReq* request) {
 }
 
 class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
-    Status Ping(ServerContext* context, const HeartBeat* request, HeartBeat* reply) {
-        reply->set_state(server_state == "INIT" ? primarybackup::HeartBeat_State_INIT : primarybackup::HeartBeat_State_READY);
-        return Status::OK;
-    }
 
     Status Write(ServerContext* context, const WriteRequest* request, WriteResponse* reply) {
         std::promise<int> promise_obj;
@@ -183,6 +179,11 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
 };
 
 class WifsServiceImplementation final : public WIFS::Service {
+    Status Ping(ServerContext* context, const HeartBeat* request, HeartBeat* reply) {
+        reply->set_state(server_state == "INIT" ? WIFS::HeartBeat_State_INIT : WIFS::HeartBeat_State_READY);
+        return Status::OK;
+    }
+
     Status wifs_WRITE(ServerContext* context, const WriteReq* request,
                       WriteRes* reply) override {
                           
@@ -216,9 +217,9 @@ class WifsServiceImplementation final : public WIFS::Service {
 void run_wifs_server(int server_id) {
     std::string node_address;
     if (server_id ==1){
-        node_address = ip_server1;
+        node_address = ip_server_wifs_1;
     } else {
-        node_address = ip_server2;
+        node_address = ip_server_wifs_2;
     }
     std::string address(node_address);
     WifsServiceImplementation service;
@@ -226,16 +227,16 @@ void run_wifs_server(int server_id) {
     wifsServer.AddListeningPort(address, grpc::InsecureServerCredentials());
     wifsServer.RegisterService(&service);
     std::unique_ptr<Server> server(wifsServer.BuildAndStart());
-    std::cout << "Server listening on port: " << address << std::endl;
+    std::cout << "WIFS Server listening on port: " << address << std::endl;
     server->Wait();
 }
 
 void run_pb_server(int server_id) {
     std::string node_address;
     if (server_id ==1){
-        node_address = ip_server1;
+        node_address = ip_server_pb_1;
     } else {
-        node_address = ip_server2;
+        node_address = ip_server_pb_2;
     }
     std::string address(node_address);
     PrimarybackupServiceImplementation service;
@@ -243,7 +244,7 @@ void run_pb_server(int server_id) {
     pbServer.AddListeningPort(address, grpc::InsecureServerCredentials());
     pbServer.RegisterService(&service);
     std::unique_ptr<Server> server(pbServer.BuildAndStart());
-    std::cout << "Server listening on port: " << address << std::endl;
+    std::cout << "PB Server listening on port: " << address << std::endl;
     server->Wait();
 }
 

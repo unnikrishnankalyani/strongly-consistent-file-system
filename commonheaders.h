@@ -15,9 +15,11 @@
 #include <iostream>
 
 //fix this
-std::string ip_master = "localhost:50054";
-std::string ip_server1 = "localhost:50052";
-std::string ip_server2 = "localhost:50053";
+std::string ip_master = "localhost:50051";
+std::string ip_server_pb_1 = "localhost:50052";
+std::string ip_server_pb_2 = "localhost:50053";
+std::string ip_server_wifs_1 = "localhost:50054";
+std::string ip_server_wifs_2 = "localhost:50055";
 
 std::string getServerPath(std::string address, int machine_id) {
     return "/users/oahmed4/.server" + std::to_string(machine_id) + "/file_" + address;

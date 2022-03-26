@@ -25,13 +25,11 @@ using wifs::ReadRes;
 using wifs::WIFS;
 using wifs::WriteReq;
 using wifs::WriteRes;
-
-using primarybackup::HeartBeat;
-using primarybackup::PrimaryBackup;
+using wifs::HeartBeat;
 
 std::unique_ptr<WIFS::Stub> master_client_stub_;
-std::unique_ptr<PrimaryBackup::Stub> heartbeat_client_stub_s1_;
-std::unique_ptr<PrimaryBackup::Stub> heartbeat_client_stub_s2_;
+std::unique_ptr<WIFS::Stub> heartbeat_client_stub_s1_;
+std::unique_ptr<WIFS::Stub> heartbeat_client_stub_s2_;
 
 //Get Primary and Backup addresses
 std::string primary_address;
@@ -65,6 +63,7 @@ class WifsServiceImplementation final : public WIFS::Service {
         ReadRes read_reply;
         Status status = master_client_stub_->wifs_READ(&client_context, read_request, &read_reply);
         reply->set_status(read_reply.status());
+        reply->set_buf(read_reply.buffer());
 	return Status::OK;
     }
 };
@@ -89,14 +88,14 @@ void check_heartbeats(){
     HeartBeat request;
     while (true){
         HeartBeat reply1, reply2;
-        heartbeat_client_stub_s1_ = PrimaryBackup::NewStub(grpc::CreateChannel(ip_server1, grpc::InsecureChannelCredentials()));
-        heartbeat_client_stub_s2_ = PrimaryBackup::NewStub(grpc::CreateChannel(ip_server2, grpc::InsecureChannelCredentials()));
+        heartbeat_client_stub_s1_ = WIFS::NewStub(grpc::CreateChannel(ip_server_wifs_1, grpc::InsecureChannelCredentials()));
+        heartbeat_client_stub_s2_ = WIFS::NewStub(grpc::CreateChannel(ip_server_wifs_2, grpc::InsecureChannelCredentials()));
         ClientContext context1, context2;
         Status status1 = heartbeat_client_stub_s1_->Ping(&context1, request, &reply1);
-        if(reply1.state() == primarybackup::HeartBeat_State_READY){
+        if(reply1.state() == WIFS::HeartBeat_State_READY){
             std::cout << "Server 1 alive!" <<std::endl;
             if(!primary_server){
-                primary_address = ip_server1;
+                primary_address = ip_server_wifs_1;
                 primary_server = 1;
                 init_or_change_primary();
                 std::cout << "Server 1: set as PRIMARY" <<std::endl;
@@ -113,7 +112,7 @@ void check_heartbeats(){
         if(reply2.state() == primarybackup::HeartBeat_State_READY){
             std::cout << "Server 2 alive!" <<std::endl;
             if(!primary_server){
-                primary_address = ip_server2;
+                primary_address = ip_server_wifs_2;
                 primary_server = 2;
                 init_or_change_primary();
                 std::cout << "Server 2: set as PRIMARY" <<std::endl;
