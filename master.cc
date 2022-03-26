@@ -73,6 +73,8 @@ void run_master_server() {
 
 void init_or_change_primary(){
     master_client_stub_ = PrimaryBackup::NewStub(grpc::CreateChannel(primary_address, grpc::InsecureChannelCredentials()));
+    // run service for clients only after we have a primary?
+    run_master_server();
 }
 
 void check_heartbeats(){
@@ -122,8 +124,5 @@ void check_heartbeats(){
 int main(int argc, char** argv) {
     
     std::thread check_heartbeats;
-    // run service for clients only after we have a primary?
-    run_master_server();
-    
     return 0;
 }
