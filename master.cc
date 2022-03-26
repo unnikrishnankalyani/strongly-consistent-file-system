@@ -91,7 +91,7 @@ void check_heartbeats(){
         heartbeat_client_stub_s2_ = WIFS::NewStub(grpc::CreateChannel(ip_server_wifs_2, grpc::InsecureChannelCredentials()));
         ClientContext context1, context2;
         Status status1 = heartbeat_client_stub_s1_->Ping(&context1, request, &reply1);
-        if(reply1.state() == WIFS::HeartBeat_State_READY){
+        if(reply1.state() == wifs::HeartBeat_State_READY){
             std::cout << "Server 1 alive!" <<std::endl;
             if(!primary_server){
                 primary_address = ip_server_wifs_1;
@@ -108,7 +108,7 @@ void check_heartbeats(){
         }
 
         Status status2 = heartbeat_client_stub_s2_->Ping(&context2, request, &reply2);
-        if(reply2.state() == WIFS::HeartBeat_State_READY){
+        if(reply2.state() == wifs::HeartBeat_State_READY){
             std::cout << "Server 2 alive!" <<std::endl;
             if(!primary_server){
                 primary_address = ip_server_wifs_2;

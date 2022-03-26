@@ -181,7 +181,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
 
 class WifsServiceImplementation final : public WIFS::Service {
     Status Ping(ServerContext* context, const HeartBeat* request, HeartBeat* reply) {
-        reply->set_state(server_state == "INIT" ? WIFS::HeartBeat_State_INIT : WIFS::HeartBeat_State_READY);
+        reply->set_state(server_state == "INIT" ? wifs::HeartBeat_State_INIT : wifs::HeartBeat_State_READY);
         return Status::OK;
     }
 
@@ -306,9 +306,9 @@ int main(int argc, char** argv) {
 
     std::string other_node_address;
     if (server_id ==1){
-        other_node_address = ip_server2;
+        other_node_address = ip_server_pb_2;
     } else {
-        other_node_address = ip_server1;
+        other_node_address = ip_server_pb_1;
     }
     std::cout << "got other node's address as " << other_node_address << "\n";
 
