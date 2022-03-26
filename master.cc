@@ -6,7 +6,6 @@
 #include <thread>
 
 #include "commonheaders.h"
-#include "primarybackup.grpc.pb.h"
 #include "wifs.grpc.pb.h"
 
 using grpc::Server;
@@ -63,7 +62,7 @@ class WifsServiceImplementation final : public WIFS::Service {
         ReadRes read_reply;
         Status status = master_client_stub_->wifs_READ(&client_context, read_request, &read_reply);
         reply->set_status(read_reply.status());
-        reply->set_buf(read_reply.buffer());
+        reply->set_buf(read_reply.buf());
 	return Status::OK;
     }
 };
@@ -109,7 +108,7 @@ void check_heartbeats(){
         }
 
         Status status2 = heartbeat_client_stub_s2_->Ping(&context2, request, &reply2);
-        if(reply2.state() == primarybackup::HeartBeat_State_READY){
+        if(reply2.state() == WIFS::HeartBeat_State_READY){
             std::cout << "Server 2 alive!" <<std::endl;
             if(!primary_server){
                 primary_address = ip_server_wifs_2;
