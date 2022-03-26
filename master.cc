@@ -45,6 +45,7 @@ class WifsServiceImplementation final : public WIFS::Service {
         //forward write to Primary server
         ClientContext client_context;
 	WriteReq write_request;
+	std::cout<< "Received write req" << std::endl;
     	write_request.set_address(request->address());
     	write_request.set_buf(request->buf());	
         WriteRes write_reply;
@@ -58,6 +59,7 @@ class WifsServiceImplementation final : public WIFS::Service {
         //forward read to Primary server - for now
         ClientContext client_context;
         ReadReq read_request;
+	std::cout<< "Received read req" << std::endl;
         read_request.set_address(request->address());
         read_request.set_buf(request->buf());
         ReadRes read_reply;
@@ -81,19 +83,16 @@ void run_master_server() {
 
 void init_or_change_primary(){
     master_client_stub_ = WIFS::NewStub(grpc::CreateChannel(primary_address, grpc::InsecureChannelCredentials()));
-    // run service for clients only after we have a primary?
-    run_master_server();
 }
-
 void check_heartbeats(){
-    heartbeat_client_stub_s1_ = PrimaryBackup::NewStub(grpc::CreateChannel(ip_server1, grpc::InsecureChannelCredentials()));
-    heartbeat_client_stub_s2_ = PrimaryBackup::NewStub(grpc::CreateChannel(ip_server2, grpc::InsecureChannelCredentials()));
-    ClientContext context;
     HeartBeat request;
     while (true){
-        HeartBeat reply;
-        Status status1 = heartbeat_client_stub_s1_->Ping(&context, request, &reply);
-        if(reply.state() == primarybackup::HeartBeat_State_READY){
+        HeartBeat reply1, reply2;
+	heartbeat_client_stub_s1_ = PrimaryBackup::NewStub(grpc::CreateChannel(ip_server1, grpc::InsecureChannelCredentials()));
+	heartbeat_client_stub_s2_ = PrimaryBackup::NewStub(grpc::CreateChannel(ip_server2, grpc::InsecureChannelCredentials()));
+	ClientContext context1, context2;
+        Status status1 = heartbeat_client_stub_s1_->Ping(&context1, request, &reply1);
+        if(reply1.state() == primarybackup::HeartBeat_State_READY){
             std::cout << "Server 1 alive!" <<std::endl;
             if(!primary_server){
                 primary_address = ip_server1;
@@ -109,8 +108,8 @@ void check_heartbeats(){
             } 
         }
 
-        Status status2 = heartbeat_client_stub_s2_->Ping(&context, request, &reply);
-        if(reply.state() == primarybackup::HeartBeat_State_READY){
+        Status status2 = heartbeat_client_stub_s2_->Ping(&context2, request, &reply2);
+        if(reply2.state() == primarybackup::HeartBeat_State_READY){
             std::cout << "Server 2 alive!" <<std::endl;
             if(!primary_server){
                 primary_address = ip_server2;
@@ -131,6 +130,8 @@ void check_heartbeats(){
 
 int main(int argc, char** argv) {
     
-    std::thread check_heartbeats;
+    std::thread hb_thread(check_heartbeats);
+   // run service for clients only after we have a primary?
+    run_master_server();
     return 0;
 }
