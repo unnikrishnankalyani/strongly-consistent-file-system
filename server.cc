@@ -57,11 +57,9 @@ sem_t sem_queue;
 // semaphore for checking if log queue has elements to read
 sem_t sem_log_queue;
 
-// used to achieve mutual exclusion during enqueue operation on write queue
+// used to achieve mutual exclusion during enqueue operation on write queue as well as log queue
 sem_t mutex_queue;
 
-// used to achieve mutual exclusion during enqueue operation on log queue
-sem_t mutex_log_queue;
 
 bool other_node_syncing = false;
 
@@ -121,19 +119,19 @@ int append_write_request(const WriteReq* request) {
     Node node(request, promise_obj);
 
     sem_wait(&mutex_queue);
+    
     write_queue.push(&node);
-    sem_post(&mutex_queue);
-    sem_post(&sem_queue);
-
+    // write request to other node
     WriteRequest write_request;
     write_request.set_blk_address(request->address());
     write_request.set_buffer(request->buf());
     if (remote_write(write_request) == -1) {
-        sem_wait(&mutex_log_queue);
         log_queue.push(write_request);
         sem_post(&sem_log_queue);
-        sem_post(&mutex_log_queue);
     }
+    sem_post(&sem_queue);
+    sem_post(&mutex_queue);
+    
     return future_obj.get();
 }
 
