@@ -10,19 +10,17 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
-#include <time.h>
 #include <unistd.h>
 
 #include <iostream>
-//#include <unistd.h>
 
-#define HTABLESIZE 100
+// fix this
+std::string ip_master = "localhost:50051";
+std::string ip_server_pb_1 = "localhost:50052";
+std::string ip_server_pb_2 = "localhost:50053";
+std::string ip_server_wifs_1 = "localhost:50054";
+std::string ip_server_wifs_2 = "localhost:50055";
 
-long get_time() {
-    struct timespec* ts;
-    clock_gettime(CLOCK_MONOTONIC, ts);
-    return ts->tv_nsec;
-}
 std::string getServerPath(std::string address, int machine_id) {
     return "/users/oahmed4/.server" + std::to_string(machine_id) + "/file_" + address;
 }

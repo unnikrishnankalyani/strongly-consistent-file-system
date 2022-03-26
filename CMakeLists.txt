@@ -101,3 +101,13 @@ target_link_libraries(server
   ${_REFLECTION}
   ${_GRPC_GRPCPP}
   ${_PROTOBUF_LIBPROTOBUF})
+
+# master
+add_executable(master "master.cc")
+target_link_libraries(master
+  ${PTHREAD_LIB}
+  wifs_grpc_proto
+  primarybackup_grpc_proto
+  ${_REFLECTION}
+  ${_GRPC_GRPCPP}
+  ${_PROTOBUF_LIBPROTOBUF})

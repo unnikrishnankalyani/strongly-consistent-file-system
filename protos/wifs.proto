@@ -5,9 +5,21 @@ option java_package = "ex.grpc";
 package wifs;
 
 service WIFS {
+  rpc Ping(HeartBeat) returns (HeartBeat) {}
   rpc wifs_READ(ReadReq) returns (ReadRes){}
   rpc wifs_WRITE(WriteReq) returns (WriteRes){}
 
+}
+
+message HeartBeat {
+    enum State {
+        // can be used when doing the catch up work after failure
+        INIT = 0;
+
+        // when in normal operation
+        READY = 1;
+    }
+    State state = 1;
 }
 
 message WriteReq {
