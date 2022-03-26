@@ -34,12 +34,12 @@ using grpc::Channel;
 using grpc::ClientContext;
 using grpc::ClientReader;
 
+using wifs::HeartBeat;
 using wifs::ReadReq;
 using wifs::ReadRes;
 using wifs::WIFS;
 using wifs::WriteReq;
 using wifs::WriteRes;
-using wifs::HeartBeat;
 
 using primarybackup::HeartBeatSync;
 using primarybackup::PrimaryBackup;
@@ -107,11 +107,11 @@ int remote_write(const WriteRequest& write_req) {
     int pending_writes = 0;
     sem_getvalue(&sem_log_queue, &pending_writes);
     if (pending_writes || other_node_syncing) return -1;
-    
+
     WriteResponse reply;
     ClientContext context;
     Status status = client_stub_->Write(&context, write_req, &reply);
-    // assuming the write never fails when the connection goes through. 
+    // assuming the write never fails when the connection goes through.
     return status.ok() ? 0 : -1;
 }
 
@@ -138,13 +138,12 @@ int append_write_request(const WriteReq* request) {
 }
 
 class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
-
     Status Write(ServerContext* context, const WriteRequest* request, WriteResponse* reply) {
         std::promise<int> promise_obj;
         std::future<int> future_obj = promise_obj.get_future();
-        
+
         // should have used the same proto to share write request.
-        Node node((WriteReq*) request, promise_obj);
+        Node node((WriteReq*)request, promise_obj);
 
         sem_wait(&mutex_queue);
         write_queue.push(&node);
@@ -187,7 +186,6 @@ class WifsServiceImplementation final : public WIFS::Service {
 
     Status wifs_WRITE(ServerContext* context, const WriteReq* request,
                       WriteRes* reply) override {
-                          
         reply->set_status(-1);
         if (append_write_request(request) == -1) return Status::OK;
         reply->set_status(0);
@@ -217,7 +215,7 @@ class WifsServiceImplementation final : public WIFS::Service {
 
 void run_wifs_server(int server_id) {
     std::string node_address;
-    if (server_id ==1){
+    if (server_id == 1) {
         node_address = ip_server_wifs_1;
     } else {
         node_address = ip_server_wifs_2;
@@ -234,7 +232,7 @@ void run_wifs_server(int server_id) {
 
 void run_pb_server(int server_id) {
     std::string node_address;
-    if (server_id ==1){
+    if (server_id == 1) {
         node_address = ip_server_pb_1;
     } else {
         node_address = ip_server_pb_2;
@@ -259,7 +257,7 @@ void update_state_to_latest() {
     std::unique_ptr<ClientReader<WriteRequest> > reader(client_stub_->Sync(&context, request));
     WriteRequest reply;
     while (reader->Read(&reply)) {
-        // don't use the write queue since that will add an overhead of populating a promise obj each time. 
+        // don't use the write queue since that will add an overhead of populating a promise obj each time.
         // sync write should be fast, and not like write in normal operation
         const auto path = getServerPath(std::to_string(reply.blk_address()), server_id);
         std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
@@ -270,24 +268,24 @@ void update_state_to_latest() {
         int rc = write(fd, (void*)reply.buffer().c_str(), BLOCK_SIZE);
         if (rc == -1) std::cout << "sync write failed " << strerror(errno) << "\n";
     }
-    
+
     Status status = reader->Finish();
     if (!status.ok()) {
         // implies that the other node is not up
         server_state = "READY";
         return;
     }
-    
+
     // now check if there are any pending log entries that the other node received when we were busy doing the above sync.
     HeartBeatSync pending_writes;
     ClientContext new_context;
     client_stub_->CheckSync(&new_context, request, &pending_writes);
-    if(!status.ok() || pending_writes.state() == primarybackup::HeartBeatSync_State_READY) {
+    if (!status.ok() || pending_writes.state() == primarybackup::HeartBeatSync_State_READY) {
         // implies that the other node crashed in between when status not okay
         server_state = "READY";
         return;
     }
-    
+
     // still has writes pending
     return update_state_to_latest();
 }
@@ -305,7 +303,7 @@ int main(int argc, char** argv) {
     std::cout << "got machine id as " << server_id << "\n";
 
     std::string other_node_address;
-    if (server_id ==1){
+    if (server_id == 1) {
         other_node_address = ip_server_pb_2;
     } else {
         other_node_address = ip_server_pb_1;
@@ -314,12 +312,12 @@ int main(int argc, char** argv) {
 
     init_connection_with_other_node(other_node_address);
     update_state_to_latest();
-    std::cout<<"synced to latest state\n";
+    std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server, server_id);
-    
+
     run_wifs_server(server_id);
-    
+
     // internal_server.join();
     // writer_thread.join();
     return 0;

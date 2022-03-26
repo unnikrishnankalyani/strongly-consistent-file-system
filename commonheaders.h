@@ -14,7 +14,7 @@
 
 #include <iostream>
 
-//fix this
+// fix this
 std::string ip_master = "localhost:50051";
 std::string ip_server_pb_1 = "localhost:50052";
 std::string ip_server_pb_2 = "localhost:50053";
