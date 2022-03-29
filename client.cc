@@ -14,7 +14,7 @@ static struct options {
 
 extern "C" {
 
-int init(){
+int init_old(){
     for(int i=0;i<sizeof(servers);i++){
 	    std::string ip_address = servers[i];
         options.wifsclient = new WifsClient(grpc::CreateChannel(ip_address, grpc::InsecureChannelCredentials()));
@@ -27,6 +27,10 @@ int init(){
             break;
         }
     }
+}
+
+int init(){
+    options.wifsclient = new WifsClient(grpc::CreateChannel(ip_server_wifs_1, grpc::InsecureChannelCredentials()));
 }
 
 int do_read(int address, char* buf) {
