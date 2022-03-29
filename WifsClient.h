@@ -19,6 +19,8 @@ using wifs::ReadRes;
 using wifs::WIFS;
 using wifs::WriteReq;
 using wifs::WriteRes;
+using wifs::ClientInitReq;
+using wifs::ClientInitRes;
 
 #define BLOCK_SIZE 4096
 
@@ -47,6 +49,14 @@ class WifsClient {
         request.set_buf(std::string(buf));
         Status status = stub_->wifs_WRITE(&context, request, &reply);
         return status.ok() ? 0 : -1;
+    }
+
+    std::string wifs_INIT(){
+        ClientContext context;
+        ClientInitReq request;
+        ClientInitRes reply;
+        Status status = stub_->wifs_INIT(&context, request, &reply);
+        return reply.primary_ip();
     }
 
    private:

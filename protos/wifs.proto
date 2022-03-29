@@ -8,7 +8,7 @@ service WIFS {
   rpc Ping(HeartBeat) returns (HeartBeat) {}
   rpc wifs_READ(ReadReq) returns (ReadRes){}
   rpc wifs_WRITE(WriteReq) returns (WriteRes){}
-
+  rpc wifs_INIT(ClientInitReq) returns (ClientInitRes){}
 }
 
 message HeartBeat {
@@ -20,6 +20,14 @@ message HeartBeat {
         READY = 1;
     }
     State state = 1;
+}
+
+message ClientInitReq {
+
+}
+
+message ClientInitRes{
+  string primary_ip = 1;
 }
 
 message WriteReq {

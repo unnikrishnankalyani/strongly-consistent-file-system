@@ -21,6 +21,10 @@ std::string ip_server_pb_2 = "localhost:50053";
 std::string ip_server_wifs_1 = "localhost:50054";
 std::string ip_server_wifs_2 = "localhost:50055";
 
+enum Role {
+    PRIMARY,
+    BACKUP,
+};
 
 std::string getServerDir(int machine_id){
         return "/users/oahmed4/.server" +  std::to_string(machine_id);
@@ -29,4 +33,3 @@ std::string getServerDir(int machine_id){
 std::string getServerPath(std::string address, int machine_id) {
     return getServerDir(machine_id) + "/file_" + address;
 }
-

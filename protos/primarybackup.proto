@@ -12,6 +12,26 @@ service PrimaryBackup {
     // return heartbeat with state INIT if there are 
     // pending items in the log. 
     rpc CheckSync(HeartBeatSync) returns (HeartBeatSync) {}
+    rpc Init(InitReq) returns (InitRes) {}
+}
+
+message InitReq {
+  enum Role{
+    LEADER = 0;
+
+    FOLLOWER = 1;
+  }
+  Role role = 1;
+}
+
+message InitRes{
+  enum Role{
+    PRIMARY = 0;
+
+    BACKUP = 1;
+  }
+  Role role = 1;
+  string primary_ip = 2;
 }
 
 message HeartBeatSync {

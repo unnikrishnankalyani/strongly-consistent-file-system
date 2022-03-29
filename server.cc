@@ -40,14 +40,25 @@ using wifs::ReadRes;
 using wifs::WIFS;
 using wifs::WriteReq;
 using wifs::WriteRes;
+using wifs::ClientInitReq;
+using wifs::ClientInitRes;
+
 
 using primarybackup::HeartBeatSync;
 using primarybackup::PrimaryBackup;
 using primarybackup::WriteRequest;
 using primarybackup::WriteResponse;
+using primarybackup::InitReq;
+using primarybackup::InitRes;
 
 char root_path[MAX_PATH_LENGTH];
 std::string server_state = "INIT";
+std::string election_state = "INIT";
+std::string other_node_address;
+std::string this_node_address;
+std::string primary = "";
+
+Role role;
 
 int server_id = 0;
 
@@ -60,6 +71,9 @@ sem_t sem_log_queue;
 // used to achieve mutual exclusion during enqueue operation on write queue as well as log queue
 sem_t mutex_queue;
 sem_t mutex_log_queue;
+
+
+sem_t mutex_election;
 
 bool other_node_syncing = false;
 
@@ -174,6 +188,31 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
         if (!pending_writes) other_node_syncing = false;
         return Status::OK;
     }
+
+    Status Init(ServerContext* context, const InitReq* request, InitRes* reply){
+        // int pending_writes = 0;
+        // sem_getvalue(&sem_log_queue, &pending_writes);
+        
+        if (request->role() == primarybackup::InitReq_Role_LEADER){
+            if(election_state == "INIT" or election_state=="BACKUP"){
+                reply->set_role(primarybackup::InitRes_Role_BACKUP);
+                election_state = "BACKUP";
+            }
+            else if (election_state == "PRIMARY"){
+                reply->set_role(primarybackup::InitRes_Role_PRIMARY);
+            }
+            else if (election_state == "CANDIDATE"){
+                if(this_node_address == ip_server_pb_1){
+                    reply->set_role(primarybackup::InitRes_Role_PRIMARY);
+                    election_state = "PRIMARY";
+                }
+                else{
+                    reply->set_role(primarybackup::InitRes_Role_BACKUP);
+                    election_state = "BACKUP"
+                }
+            }
+        }     
+    }
 };
 
 class WifsServiceImplementation final : public WIFS::Service {
@@ -187,6 +226,12 @@ class WifsServiceImplementation final : public WIFS::Service {
         reply->set_status(-1);
         if (append_write_request(request) == -1) return Status::OK;
         reply->set_status(0);
+        return Status::OK;
+    }
+
+    Status wifs_INIT(ServerContext* context, const ClientInitReq* request,
+                      ClientInitRes* reply) override {
+        reply->set_primary_ip(primary);
         return Status::OK;
     }
 
@@ -249,6 +294,33 @@ void init_connection_with_other_node(std::string other_node_address) {
     client_stub_ = PrimaryBackup::NewStub(grpc::CreateChannel(other_node_address, grpc::InsecureChannelCredentials()));
 }
 
+void concensus(){
+    ClientContext context;
+    InitReq request;
+    InitRes reply;
+    // 1. Sleep to wait for an incoming heartbeat
+    sleep(1000);
+    // 2. If heartbeat had come during the timeout, election_state would be updated
+    // 3. Election state is not updated, so no heartbeat has come
+    if (election_state == "INIT"){
+        election_state = "CANDIDATE";
+        request.set_role(primarybackup::InitReq_Role_LEADER);
+        client_stub_->Init(&context, request, &reply);
+        if (reply.role() == primarybackup::InitRes_Role_PRIMARY){
+            election_state = "BACKUP";
+        }
+        else if (reply.role() == primarybackup::InitRes_Role_BACKUP){
+            election_state = "PRIMARY";
+        }
+    }
+    if(election_state == "PRIMARY"){
+        primary = this_node_address;
+    }
+    if(election_state == "BACKUP"){
+        primary = other_node_address;
+    }
+}
+
 void update_state_to_latest() {
     HeartBeatSync request;
     ClientContext context;
@@ -292,6 +364,8 @@ int main(int argc, char** argv) {
     sem_init(&sem_queue, 0, 0);
     sem_init(&mutex_queue, 0, 1);
     sem_init(&mutex_log_queue, 0, 1);
+    sem_init(&mutex_election,0,1);
+
     if (argc < 2) {
         std::cout << "Machine id not given\n";
         exit(1);
@@ -300,15 +374,17 @@ int main(int argc, char** argv) {
     server_id = atoi(argv[1]);
     std::cout << "got machine id as " << server_id << "\n";
 
-    std::string other_node_address;
     if (server_id == 1) {
         other_node_address = ip_server_pb_2;
+        this_node_address = ip_server_pb_1;
     } else {
         other_node_address = ip_server_pb_1;
+        this_node_address = ip_server_pb_2;
     }
     std::cout << "got other node's address as " << other_node_address << "\n";
-
+    
     init_connection_with_other_node(other_node_address);
+    //concensus();
     update_state_to_latest();
     std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);

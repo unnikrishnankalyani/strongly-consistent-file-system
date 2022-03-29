@@ -36,6 +36,8 @@ std::string primary_address;
 std::string backup_address;
 int primary_server = 0;
 
+
+
 // Wifs service to accept requests from clients and redirect to Primary server
 class WifsServiceImplementation final : public WIFS::Service {
     Status wifs_WRITE(ServerContext* context, const WriteReq* request,

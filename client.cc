@@ -7,31 +7,27 @@
 #include "WifsClient.h"
 #include "wifs.grpc.pb.h"
 
-static struct options {
+static struct Options {
     WifsClient* wifsclient;
     int show_help;
+	std::string primary = ip_server_wifs_1;
 } options;
 
-int do_read(int address, char* buf) {
-    return options.wifsclient->wifs_READ(address, buf);
+
+int init(std::string server_ip){
+	options.wifsclient = new WifsClient(grpc::CreateChannel(server_ip, grpc::InsecureChannelCredentials()));
+	//options.backup = new WifsClient((grpc::CreateChannel(ip_server_wifs2, grpc::InsecureChannelCredentials()));
+	options.primary = options.wifsclient->wifs_INIT();
+	return 0;
 }
 
-int do_write(int address, char* buf) {
-    return options.wifsclient->wifs_WRITE(address, buf);
+int read(int address, char* buf){
+	return options.wifsclient->wifs_READ(address, buf);
 }
 
-void tester() {
-    char buf[BLOCK_SIZE + 1];
-    for (int i = 0; i < BLOCK_SIZE; i++) buf[i] = 'a';
-    do_write(0, buf);
-    buf[0] = '\0';
-    do_read(0, buf);
-    buf[BLOCK_SIZE] = '\0';
-    printf("read %s", buf);
+int write(int address, char* buf){
+	return options.wifsclient->wifs_READ(address, buf);
 }
 
-int main(int argc, char* argv[]) {
-    options.wifsclient = new WifsClient(grpc::CreateChannel(ip_master, grpc::InsecureChannelCredentials()));
-    tester();
-    return 0;
-}
+
+   
