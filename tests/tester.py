@@ -4,6 +4,9 @@ from subprocess import Popen, PIPE, STDOUT, DEVNULL
 import threading
 import enum
 
+import random
+import string
+
 ip_master = "localhost:50051"
 ip_server_pb_1 = "localhost:50052"
 ip_server_pb_2 = "localhost:50053"
@@ -59,7 +62,9 @@ class Client(threading.Thread):
         self.address = get_offset(address)
         self.read_buf = get_read_buffer(4096)
         self.libclient.do_read(self.address, self.read_buf)
+
         print(self.read_buf)
+
         self.read_buf = self.read_buf.value.decode("utf-8")
     
     def write(self, address, buffer):
@@ -67,5 +72,13 @@ class Client(threading.Thread):
         write_buf = get_write_buffer(buffer)
         self.libclient.do_write(address, write_buf)
     
+
     def init(self):
         self.libclient.init()
+
+
+def get_random_4KB():
+    letters = string.ascii_uppercase + string.ascii_lowercase + string.ascii_letters + string.digits + string.punctuation
+    temp = ''.join(random.choice(letters) for i in range(4096)) 
+    return(temp)
+
