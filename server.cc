@@ -194,8 +194,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
         // int pending_writes = 0;
         // sem_getvalue(&sem_log_queue, &pending_writes);
         std::cout << "Election RPC Received!" <<std::endl;
-        std::cout << request->role() <<std::endl;
-        if (request->role() == primarybackup::InitReq_Role_LEADER){
+        if (request->role() == primarybackup::InitReq_Role_LEADER) {
             if(election_state == "INIT" or election_state=="BACKUP"){
                 std::cout << "Other candidate accepted as PRIMARY. This server BACKUP" << std::endl;
                 reply->set_role(primarybackup::InitRes_Role_BACKUP);
@@ -311,10 +310,9 @@ void concensus(){
         election_state = "CANDIDATE";
         request.set_role(primarybackup::InitReq_Role_LEADER);
         Status status = client_stub_->Init(&context, request, &reply);
-        std::cout << status.ok() <<std::endl;
-        if(status.ok()){
+        if(status.ok()) {
             std::cout <<"Status is OK" <<std::endl;
-            if(reply.status() == 0){
+            if(reply.status() == 0) {
                 std::cout << "Both servers are candidates simultaneously! Retrying Election" <<std::endl;
                 sem_post(&mutex_election);
                 int randTime = rand() % 1000 + 1;
@@ -333,7 +331,7 @@ void concensus(){
             }
         }
         else {
-            election_state == "PRIMARY";
+            election_state = "PRIMARY";
             std::cout << "This server is a primary!" <<std::endl; 
         }
         
@@ -362,7 +360,7 @@ void update_state_to_latest() {
         const int fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG);
         if (fd == -1) std::cout << "sync open failed " << strerror(errno) << "\n";
 
-        int rc = pwrite(fd, (void*)reply.buffer().c_str(), BLOCK_SIZE, reply.blkaddress());
+        int rc = pwrite(fd, (void*)reply.buffer().c_str(), BLOCK_SIZE, reply.blk_address());
         if (rc == -1) std::cout << "sync write failed " << strerror(errno) << "\n";
     }
 
