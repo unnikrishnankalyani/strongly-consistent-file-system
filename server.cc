@@ -247,8 +247,7 @@ class WifsServiceImplementation final : public WIFS::Service {
             return Status::OK;
         }
 
-        std::string buffer;
-        buffer.reserve(BLOCK_SIZE);
+        std::string buffer(BLOCK_SIZE, ' ');
         std::ifstream file_inp(path);
         file_inp.seekg(request->address());
         file_inp.read(&buffer[0], BLOCK_SIZE);

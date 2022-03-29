@@ -43,7 +43,7 @@ class Server():
     def run_server(self):
         self.server = Popen([os.path.abspath('../cmake/build/server'), \
             str(self.server_id)], shell=False, close_fds=True)#, stdout=DEVNULL, stderr=STDOUT)
-        self.server.communicate()
+        # self.server.communicate()
 
 class Client(threading.Thread):
     def __init__(self):
