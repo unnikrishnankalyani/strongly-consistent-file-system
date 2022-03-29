@@ -17,25 +17,16 @@ secondary.run_server()
 
 #Client Steps
 #Step 1: Init the client with the IP to use for primary
-init(primary_ip)
+client1 = Client(ip_server_wifs_1)
 
-#Step 2: Set the offset to read/write from
-address = get_offset(0)
+#Step 2: Perform the write
+client1.write(0, "f" * 4096)
 
-#Step 3: Set the write buffer to be written
-write_buf = get_write_buffer("e" * 4096)
+#Step 3: Perform the read
+client1.read(0)
 
-#Step 4: Set the read buffer to be filled
-read_buf = get_read_buffer(4096)
-
-#Step 5: Perform the write
-do_write(address,write_buf)
-
-#Step 6: Perform the read
-do_read(address, read_buf)
-
-#Step 7: Check result
-print(read_buf.value)
+#Step 4: Check result
+print(client1.read_buf)
 
 
 #Kill Servers. Move this step around to simulate failures. Use terminate for graceful shutdown and kill for failure
