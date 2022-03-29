@@ -26,10 +26,12 @@ enum Role {
     BACKUP,
 };
 
+std::string servers[2] = {ip_server_wifs_1, ip_server_wifs_2};
+
 std::string getServerDir(int machine_id){
         return "/users/oahmed4/.server" +  std::to_string(machine_id);
 }
 
 std::string getServerPath(std::string address, int machine_id) {
-    return getServerDir(machine_id) + "/file_" + address;
+    return getServerDir(machine_id) + "/bs" ;//"/file_" + address;
 }

@@ -1,33 +1,42 @@
 #include <grpcpp/grpcpp.h>
 #include <sys/stat.h>
 #include <time.h>
-
 #include <iostream>
 
 #include "WifsClient.h"
 #include "wifs.grpc.pb.h"
 
-static struct Options {
+static struct options {
     WifsClient* wifsclient;
     int show_help;
-	std::string primary = ip_server_wifs_1;
+    std::string primary = ip_server_wifs_1;
 } options;
 
+extern "C" {
 
-int init(std::string server_ip){
-	options.wifsclient = new WifsClient(grpc::CreateChannel(server_ip, grpc::InsecureChannelCredentials()));
-	//options.backup = new WifsClient((grpc::CreateChannel(ip_server_wifs2, grpc::InsecureChannelCredentials()));
-	options.primary = options.wifsclient->wifs_INIT();
-	return 0;
+int init(){
+    for(int i=0;i<sizeof(servers);i++){
+	    std::string ip_address = servers[i];
+        options.wifsclient = new WifsClient(grpc::CreateChannel(ip_address, grpc::InsecureChannelCredentials()));
+        char* ip;
+        std::cout<<"Asking server IP of primary " << std::endl;
+        int rc = options.wifsclient->wifs_INIT(ip);
+        std::cout<<"Server informed that primary ip is "<< std::string(ip) << std::endl;
+        if(rc >= 0){
+            options.wifsclient = new WifsClient(grpc::CreateChannel(std::string(ip), grpc::InsecureChannelCredentials()));
+            break;
+        }
+    }
 }
 
-int read(int address, char* buf){
-	return options.wifsclient->wifs_READ(address, buf);
+int do_read(int address, char* buf) {
+    int rc = options.wifsclient->wifs_READ(address, buf);
+    return rc;    
 }
 
-int write(int address, char* buf){
-	return options.wifsclient->wifs_READ(address, buf);
+int do_write(int address, char* buf) {
+    int rc = options.wifsclient->wifs_WRITE(address, buf);
+    return rc;
 }
 
-
-   
+}

@@ -32,6 +32,7 @@ message InitRes{
   }
   Role role = 1;
   string primary_ip = 2;
+  int32 status = 3;
 }
 
 message HeartBeatSync {

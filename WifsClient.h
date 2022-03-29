@@ -51,12 +51,14 @@ class WifsClient {
         return status.ok() ? 0 : -1;
     }
 
-    std::string wifs_INIT(){
+    int wifs_INIT(const char buf[MAX_PATH_LENGTH]){
         ClientContext context;
         ClientInitReq request;
         ClientInitRes reply;
         Status status = stub_->wifs_INIT(&context, request, &reply);
-        return reply.primary_ip();
+        buf = reply.primary_ip().c_str();
+        std::cout<<"Printing from WifsClient: IP address: " << buf <<std::endl;
+        return status.ok() ? 0 : -1;
     }
 
    private:

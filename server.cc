@@ -18,6 +18,7 @@
 #include <iostream>
 #include <streambuf>
 #include <string>
+#include <time.h> 
 
 #include "commonheaders.h"
 #include "primarybackup.grpc.pb.h"
@@ -106,7 +107,7 @@ void local_write(void) {
         const int fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG);
         if (fd == -1) std::cout << "open failed " << strerror(errno) << "\n";
 
-        int rc = write(fd, (void*)request->buf().c_str(), BLOCK_SIZE);
+        int rc = pwrite(fd, (void*)request->buf().c_str(), BLOCK_SIZE, request->address());
         if (rc == -1) std::cout << "write failed " << strerror(errno) << "\n";
         node->promise_obj.set_value(rc);
     }
@@ -192,26 +193,25 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
     Status Init(ServerContext* context, const InitReq* request, InitRes* reply){
         // int pending_writes = 0;
         // sem_getvalue(&sem_log_queue, &pending_writes);
-        
+        std::cout << "Election RPC Received!" <<std::endl;
+        std::cout << request->role() <<std::endl;
         if (request->role() == primarybackup::InitReq_Role_LEADER){
             if(election_state == "INIT" or election_state=="BACKUP"){
+                std::cout << "Other candidate accepted as PRIMARY. This server BACKUP" << std::endl;
                 reply->set_role(primarybackup::InitRes_Role_BACKUP);
+                reply->set_status(1);
                 election_state = "BACKUP";
             }
             else if (election_state == "PRIMARY"){
+                reply->set_status(1);
+                std::cout << "Other candidate rejected as PRIMARY. This server PRIMARYç" << std::endl;
                 reply->set_role(primarybackup::InitRes_Role_PRIMARY);
             }
             else if (election_state == "CANDIDATE"){
-                if(this_node_address == ip_server_pb_1){
-                    reply->set_role(primarybackup::InitRes_Role_PRIMARY);
-                    election_state = "PRIMARY";
-                }
-                else{
-                    reply->set_role(primarybackup::InitRes_Role_BACKUP);
-                    election_state = "BACKUP"
-                }
+                reply->set_status(0);
             }
-        }     
+        }
+        return Status::OK;     
     }
 };
 
@@ -231,7 +231,9 @@ class WifsServiceImplementation final : public WIFS::Service {
 
     Status wifs_INIT(ServerContext* context, const ClientInitReq* request,
                       ClientInitRes* reply) override {
+        sem_wait(&mutex_election);
         reply->set_primary_ip(primary);
+        sem_post(&mutex_election);
         return Status::OK;
     }
 
@@ -295,30 +297,55 @@ void init_connection_with_other_node(std::string other_node_address) {
 }
 
 void concensus(){
+    std::cout << "Election begins. Waiting for mutex release" <<std::endl;
+    sem_wait(&mutex_election);
     ClientContext context;
     InitReq request;
     InitRes reply;
     // 1. Sleep to wait for an incoming heartbeat
-    sleep(1000);
+    sleep(1);
     // 2. If heartbeat had come during the timeout, election_state would be updated
     // 3. Election state is not updated, so no heartbeat has come
-    if (election_state == "INIT"){
+    if (election_state == "INIT" or election_state == "CANDIDATE"){
+        std::cout << "No heartbeat received. Server is a candidate" <<std::endl;
         election_state = "CANDIDATE";
         request.set_role(primarybackup::InitReq_Role_LEADER);
-        client_stub_->Init(&context, request, &reply);
-        if (reply.role() == primarybackup::InitRes_Role_PRIMARY){
-            election_state = "BACKUP";
+        Status status = client_stub_->Init(&context, request, &reply);
+        std::cout << status.ok() <<std::endl;
+        if(status.ok()){
+            std::cout <<"Status is OK" <<std::endl;
+            if(reply.status() == 0){
+                std::cout << "Both servers are candidates simultaneously! Retrying Election" <<std::endl;
+                sem_post(&mutex_election);
+                int randTime = rand() % 1000 + 1;
+                sleep(randTime * 1e-3);
+                concensus();
+            }
+            else if (reply.status() == 1){
+                if (reply.role() == primarybackup::InitRes_Role_PRIMARY){
+                    std::cout << "Other server is Primary. This server is now backup" <<std::endl;
+                    election_state = "BACKUP";
+                }
+                else if (reply.role() == primarybackup::InitRes_Role_BACKUP){
+                    std::cout << "Other server is Backup. This server is now Primary" <<std::endl;
+                    election_state = "PRIMARY";
+                }
+            }
         }
-        else if (reply.role() == primarybackup::InitRes_Role_BACKUP){
-            election_state = "PRIMARY";
+        else {
+            election_state == "PRIMARY";
+            std::cout << "This server is a primary!" <<std::endl; 
         }
+        
     }
     if(election_state == "PRIMARY"){
         primary = this_node_address;
+
     }
     if(election_state == "BACKUP"){
         primary = other_node_address;
     }
+    sem_post(&mutex_election);
 }
 
 void update_state_to_latest() {
@@ -335,7 +362,7 @@ void update_state_to_latest() {
         const int fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG);
         if (fd == -1) std::cout << "sync open failed " << strerror(errno) << "\n";
 
-        int rc = write(fd, (void*)reply.buffer().c_str(), BLOCK_SIZE);
+        int rc = pwrite(fd, (void*)reply.buffer().c_str(), BLOCK_SIZE, reply.blkaddress());
         if (rc == -1) std::cout << "sync write failed " << strerror(errno) << "\n";
     }
 
@@ -361,6 +388,9 @@ void update_state_to_latest() {
 }
 
 int main(int argc, char** argv) {
+
+    srand(time(NULL));
+
     sem_init(&sem_queue, 0, 0);
     sem_init(&mutex_queue, 0, 1);
     sem_init(&mutex_log_queue, 0, 1);
@@ -384,12 +414,13 @@ int main(int argc, char** argv) {
     std::cout << "got other node's address as " << other_node_address << "\n";
     
     init_connection_with_other_node(other_node_address);
-    //concensus();
+    concensus();
     update_state_to_latest();
+    
     std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server, server_id);
-    
+
     //Create server path if it doesn't exist
     DIR* dir = opendir(getServerDir(server_id).c_str());
     if (ENOENT == errno){
