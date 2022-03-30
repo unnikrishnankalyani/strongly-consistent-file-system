@@ -258,7 +258,7 @@ class WifsServiceImplementation final : public WIFS::Service {
     }
 };
 
-void run_wifs_server(int server_id) {
+void run_wifs_server() {
     std::string node_address;
     if (server_id == 1) {
         node_address = ip_server_wifs_1;
@@ -297,7 +297,7 @@ void make_backup(){
     std::thread hb_thread(check_heartbeat);
 }
 
-void check_heartbeat(int server_id) {
+void check_heartbeat() {
     //Only BACKUP should call this
     std::string other_node_address_wi;
     if (server_id == 1) {
@@ -456,7 +456,7 @@ int main(int argc, char** argv) {
     if (ENOENT == errno){
         mkdir(getServerDir(server_id).c_str(),0777);
     }
-    run_wifs_server(server_id);
+    run_wifs_server();
 
     // internal_server.join();
     // writer_thread.join();
