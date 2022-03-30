@@ -369,13 +369,14 @@ void check_heartbeat() {
             HeartBeat reply;
             ClientContext context;
             Status status = client_stub_->Ping(&context, request, &reply);
-            if (reply.state() == primarybackup::HeartBeat_State_READY) {
-                std::cout << "Primary alive " << std::endl;
-            } else {
+            if(!status.ok() || reply.state() != primarybackup::HeartBeat_State_READY){
                 std::cout << "No heartbeat on Primary, Start elections" << std::endl;
                 // Try to be Primary
                 election_state = "CANDIDATE";
                 concensus();
+            }
+            else {
+                std::cout << "Primary alive " << std::endl;
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(HEARTBEAT_TIMER));  
