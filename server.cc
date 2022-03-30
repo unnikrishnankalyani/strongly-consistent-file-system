@@ -48,6 +48,7 @@ using primarybackup::WriteResponse;
 
 char root_path[MAX_PATH_LENGTH];
 std::string server_state = "INIT";
+std::string other_node_address;
 
 int server_id = 0;
 
@@ -67,6 +68,10 @@ int pending_write_address = -1;
 bool other_node_syncing = false;
 
 std::unique_ptr<PrimaryBackup::Stub> client_stub_;
+
+void init_connection_with_other_node() {
+    client_stub_ = PrimaryBackup::NewStub(grpc::CreateChannel(other_node_address, grpc::InsecureChannelCredentials()));
+}
 
 class Node {
    public:
@@ -113,6 +118,12 @@ int remote_write(const WriteRequest& write_req) {
     ClientContext context;
     Status status = client_stub_->Write(&context, write_req, &reply);
     // assuming the write never fails when the connection goes through.
+    // if call fails, try one more time
+    if(!status.ok()) {
+        init_connection_with_other_node();
+        ClientContext context;
+        status = client_stub_->Write(&context, write_req, &reply);
+    }
     return status.ok() ? 0 : -1;
 }
 
@@ -136,6 +147,7 @@ int append_write_request(const WriteReq* request) {
     sem_post(&mutex_pending_grpc_write);
     
     if (remote_write(write_request) == -1) {
+        std::cout<<"appending to failure log\n";
         log_queue.push(write_request);
         sem_post(&sem_log_queue);
     }
@@ -150,7 +162,6 @@ int append_write_request(const WriteReq* request) {
 
 class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
     Status Write(ServerContext* context, const WriteRequest* request, WriteResponse* reply) {
-        while(true);
         std::promise<int> promise_obj;
         std::future<int> future_obj = promise_obj.get_future();
 
@@ -277,11 +288,7 @@ void run_pb_server(int server_id) {
     server->Wait();
 }
 
-void init_connection_with_other_node(std::string other_node_address) {
-    client_stub_ = PrimaryBackup::NewStub(grpc::CreateChannel(other_node_address, grpc::InsecureChannelCredentials()));
-}
-
-void update_state_to_latest() {
+void update_state_to_latest(int retry_count) {
     HeartBeatSync request;
     ClientContext context;
     std::unique_ptr<ClientReader<WriteRequest> > reader(client_stub_->Sync(&context, request));
@@ -302,9 +309,11 @@ void update_state_to_latest() {
     Status status = reader->Finish();
     if (!status.ok()) {
         // implies that the other node is not up
+        std::cout<<"not able to contant other node\n";
         server_state = "READY";
+        if(!retry_count) return update_state_to_latest(1);
         return;
-    }
+    } else std::cout<<"was able to contant other node\n";
 
     // now check if there are any pending log entries that the other node received when we were busy doing the above sync.
     HeartBeatSync pending_writes;
@@ -317,7 +326,7 @@ void update_state_to_latest() {
     }
 
     // still has writes pending
-    return update_state_to_latest();
+    return update_state_to_latest(0);
 }
 
 int main(int argc, char** argv) {
@@ -333,7 +342,6 @@ int main(int argc, char** argv) {
     server_id = atoi(argv[1]);
     std::cout << "got machine id as " << server_id << "\n";
 
-    std::string other_node_address;
     if (server_id == 1) {
         other_node_address = ip_server_pb_2;
     } else {
@@ -341,8 +349,8 @@ int main(int argc, char** argv) {
     }
     std::cout << "got other node's address as " << other_node_address << "\n";
 
-    init_connection_with_other_node(other_node_address);
-    update_state_to_latest();
+    init_connection_with_other_node();
+    update_state_to_latest(0);
     std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server, server_id);
