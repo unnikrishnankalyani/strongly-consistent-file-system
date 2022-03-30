@@ -35,7 +35,6 @@ using grpc::Channel;
 using grpc::ClientContext;
 using grpc::ClientReader;
 
-using wifs::HeartBeat;
 using wifs::ReadReq;
 using wifs::ReadRes;
 using wifs::WIFS;
@@ -44,7 +43,7 @@ using wifs::WriteRes;
 using wifs::ClientInitReq;
 using wifs::ClientInitRes;
 
-using primarybackup::HeartBeatSync;
+using primarybackup::HeartBeat;
 using primarybackup::PrimaryBackup;
 using primarybackup::WriteRequest;
 using primarybackup::WriteResponse;
@@ -81,7 +80,6 @@ sem_t sem_concensus;
 bool other_node_syncing = false;
 
 std::unique_ptr<PrimaryBackup::Stub> client_stub_;
-std::unique_ptr<WIFS::Stub> heartbeat_stub;
 
 class Node {
    public:
@@ -154,6 +152,11 @@ int append_write_request(const WriteReq* request) {
 }
 
 class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
+    Status Ping(ServerContext* context, const HeartBeat* request, HeartBeat* reply) {
+        reply->set_state(server_state == "INIT" ? primarybackup::HeartBeat_State_INIT : primarybackup::HeartBeat_State_READY);
+        return Status::OK;
+    }
+
     Status Write(ServerContext* context, const WriteRequest* request, WriteResponse* reply) {
         std::promise<int> promise_obj;
         std::future<int> future_obj = promise_obj.get_future();
@@ -170,7 +173,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
         return Status::OK;
     }
 
-    Status Sync(ServerContext* context, const HeartBeatSync* request, ServerWriter<WriteRequest>* writer) {
+    Status Sync(ServerContext* context, const HeartBeat* request, ServerWriter<WriteRequest>* writer) {
         int pending_writes = 0;
         sem_getvalue(&sem_log_queue, &pending_writes);
         if (pending_writes) other_node_syncing = true;
@@ -185,10 +188,10 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
         return Status::OK;
     }
 
-    Status CheckSync(ServerContext* context, const HeartBeatSync* request, HeartBeatSync* reply) {
+    Status CheckSync(ServerContext* context, const HeartBeat* request, HeartBeat* reply) {
         int pending_writes = 0;
         sem_getvalue(&sem_log_queue, &pending_writes);
-        reply->set_state(pending_writes ? primarybackup::HeartBeatSync_State_INIT : primarybackup::HeartBeatSync_State_READY);
+        reply->set_state(pending_writes ? primarybackup::HeartBeat_State_INIT : primarybackup::HeartBeat_State_READY);
         if (!pending_writes) other_node_syncing = false;
         return Status::OK;
     }
@@ -227,10 +230,6 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
 };
 
 class WifsServiceImplementation final : public WIFS::Service {
-    Status Ping(ServerContext* context, const HeartBeat* request, HeartBeat* reply) {
-        reply->set_state(server_state == "INIT" ? wifs::HeartBeat_State_INIT : wifs::HeartBeat_State_READY);
-        return Status::OK;
-    }
 
     Status wifs_WRITE(ServerContext* context, const WriteReq* request,
                       WriteRes* reply) override {
@@ -364,23 +363,16 @@ void concensus(){
 
 void check_heartbeat() {
 	std::cout << "Heartbeats" <<std::endl;
-    std::string other_node_address_wi;
-    if (server_id == 1) {
-        other_node_address_wi = ip_server_wifs_2;
-    } else {
-        other_node_address_wi = ip_server_wifs_1;
-    }
     HeartBeat request;
     while (true) {
         if(election_state == "BACKUP"){
             HeartBeat reply;
-            heartbeat_stub = WIFS::NewStub(grpc::CreateChannel(other_node_address_wi, grpc::InsecureChannelCredentials()));
             ClientContext context;
-            Status status = heartbeat_stub->Ping(&context, request, &reply);
-            if (reply.state() == wifs::HeartBeat_State_READY) {
-                std::cout << "Server alive on " << other_node_address_wi << std::endl;
+            Status status = client_stub_->Ping(&context, request, &reply);
+            if (reply.state() == primarybackup::HeartBeat_State_READY) {
+                std::cout << "Primary alive " << std::endl;
             } else {
-                std::cout << "No heartbeat on " << other_node_address_wi <<" Try to be Primary, Start elections" << std::endl;
+                std::cout << "No heartbeat on Primary, Start elections" << std::endl;
                 // Try to be Primary
                 election_state = "CANDIDATE";
                 concensus();
@@ -391,7 +383,7 @@ void check_heartbeat() {
 }
 
 void update_state_to_latest() {
-    HeartBeatSync request;
+    HeartBeat request;
     ClientContext context;
     std::unique_ptr<ClientReader<WriteRequest> > reader(client_stub_->Sync(&context, request));
     WriteRequest reply;
@@ -416,10 +408,10 @@ void update_state_to_latest() {
     }
 
     // now check if there are any pending log entries that the other node received when we were busy doing the above sync.
-    HeartBeatSync pending_writes;
+    HeartBeat pending_writes;
     ClientContext new_context;
     client_stub_->CheckSync(&new_context, request, &pending_writes);
-    if (!status.ok() || pending_writes.state() == primarybackup::HeartBeatSync_State_READY) {
+    if (!status.ok() || pending_writes.state() == primarybackup::HeartBeat_State_READY) {
         // implies that the other node crashed in between when status not okay
         server_state = "READY";
         return;
