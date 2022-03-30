@@ -119,9 +119,9 @@
 //     }
 // }
 
-// int main(int argc, char** argv) {
+ int main(int argc, char** argv) {
 //     std::thread hb_thread(check_heartbeats);
 //     // run service for clients only after we have a primary?
 //     run_master_server();
-//     return 0;
-// }
+     return 0;
+}
