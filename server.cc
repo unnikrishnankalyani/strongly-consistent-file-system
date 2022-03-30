@@ -49,6 +49,7 @@ using primarybackup::WriteResponse;
 char root_path[MAX_PATH_LENGTH];
 std::string server_state = "INIT";
 std::string other_node_address;
+std::string cur_node_wifs_address;
 
 int server_id = 0;
 
@@ -230,7 +231,7 @@ class WifsServiceImplementation final : public WIFS::Service {
             // this will happen when the other node is down, is_grpc_write_pending is set, and a read is called
             // before pushing the write to failure log and resetting is_grpc_write_pending.
             reply->set_status(wifs::ReadRes_Status_RETRY);
-            reply->set_node_ip(ip_server_wifs_2);
+            reply->set_node_ip(cur_node_wifs_address == ip_server_wifs_1 ? ip_server_wifs_2 : ip_server_wifs_1);
             return Status::OK;
         }
 
@@ -277,6 +278,7 @@ void run_pb_server(int server_id) {
     } else {
         node_address = ip_server_pb_2;
     }
+    cur_node_wifs_address = node_address;
     std::string address(node_address);
     PrimarybackupServiceImplementation service;
     ServerBuilder pbServer;
