@@ -302,7 +302,7 @@ void run_pb_server(int server_id) {
     pbServer.AddListeningPort(address, grpc::InsecureServerCredentials());
     pbServer.RegisterService(&service);
     std::unique_ptr<Server> server(pbServer.BuildAndStart());
-    sem_post(&concensus);
+    sem_post(&sem_concensus);
     std::cout << "PB Server listening on port: " << address << std::endl;
     server->Wait();
 }
@@ -312,7 +312,7 @@ void init_connection_with_other_node(std::string other_node_address) {
 }
 
 void concensus(){
-    sem_wait(&concensus);
+    sem_wait(&sem_concensus);
     std::cout << "Election begins. Waiting for mutex release" <<std::endl;
     sem_wait(&mutex_election);
     ClientContext context;
@@ -363,6 +363,7 @@ void concensus(){
 }
 
 void check_heartbeat() {
+	std::cout << "Heartbeats" <<std::endl;
     std::string other_node_address_wi;
     if (server_id == 1) {
         other_node_address_wi = ip_server_wifs_2;
@@ -462,6 +463,7 @@ int main(int argc, char** argv) {
     std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server, server_id);
+    std::thread hb_thread(check_heartbeat);
     concensus();
     //Create server path if it doesn't exist
     DIR* dir = opendir(getServerDir(server_id).c_str());
@@ -469,7 +471,6 @@ int main(int argc, char** argv) {
         mkdir(getServerDir(server_id).c_str(),0777);
     }
     run_wifs_server();
-    std::thread hb_thread(check_heartbeat);
     // internal_server.join();
     // writer_thread.join();
     return 0;
