@@ -119,7 +119,7 @@ int remote_write(const WriteRequest& write_req) {
     Status status = client_stub_->Write(&context, write_req, &reply);
     // assuming the write never fails when the connection goes through.
     // if call fails, try one more time
-    if(!status.ok()) {
+    if (!status.ok()) {
         init_connection_with_other_node();
         ClientContext context;
         status = client_stub_->Write(&context, write_req, &reply);
@@ -136,18 +136,18 @@ int append_write_request(const WriteReq* request) {
 
     write_queue.push(&node);
     sem_post(&sem_queue);
-    
+
     // write request to other node
     WriteRequest write_request;
     write_request.set_blk_address(request->address());
     write_request.set_buffer(request->buf());
-    
+
     sem_wait(&mutex_pending_grpc_write);
     pending_write_address = request->address();
     sem_post(&mutex_pending_grpc_write);
-    
+
     if (remote_write(write_request) == -1) {
-        std::cout<<"appending to failure log\n";
+        std::cout << "appending to failure log\n";
         log_queue.push(write_request);
         sem_post(&sem_log_queue);
     }
@@ -219,17 +219,16 @@ class WifsServiceImplementation final : public WIFS::Service {
 
     Status wifs_READ(ServerContext* context, const ReadReq* request,
                      ReadRes* reply) override {
-        
         bool is_grpc_write_pending = false;
         sem_wait(&mutex_pending_grpc_write);
         is_grpc_write_pending = pending_write_address == request->address();
         sem_post(&mutex_pending_grpc_write);
 
-        if(is_grpc_write_pending) {
-            // if the other node is down, then the client library should make a thrird call to the 
-            // earlier node, it will most probably be served. 
-            // this will happen when the other node is down, is_grpc_write_pending is set, and a read is called 
-            // before pushing the write to failure log and resetting is_grpc_write_pending. 
+        if (is_grpc_write_pending) {
+            // if the other node is down, then the client library should make a thrird call to the
+            // earlier node, it will most probably be served.
+            // this will happen when the other node is down, is_grpc_write_pending is set, and a read is called
+            // before pushing the write to failure log and resetting is_grpc_write_pending.
             reply->set_status(wifs::ReadRes_Status_RETRY);
             reply->set_node_ip(ip_server_wifs_2);
             return Status::OK;
@@ -309,11 +308,12 @@ void update_state_to_latest(int retry_count) {
     Status status = reader->Finish();
     if (!status.ok()) {
         // implies that the other node is not up
-        std::cout<<"not able to contant other node\n";
+        std::cout << "not able to contant other node\n";
         server_state = "READY";
-        if(!retry_count) return update_state_to_latest(1);
+        if (!retry_count) return update_state_to_latest(1);
         return;
-    } else std::cout<<"was able to contant other node\n";
+    } else
+        std::cout << "was able to contant other node\n";
 
     // now check if there are any pending log entries that the other node received when we were busy doing the above sync.
     HeartBeatSync pending_writes;

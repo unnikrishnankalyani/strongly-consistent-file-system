@@ -44,7 +44,7 @@ class WifsServiceImplementation final : public WIFS::Service {
         ClientContext client_context;
         std::cout << "Received write req" << std::endl;
         Status status = master_client_stub_->wifs_WRITE(&client_context, *request, reply);
-        if(!status.ok()) std::cout << "couldn't connect to primary for write\n"; 
+        if (!status.ok()) std::cout << "couldn't connect to primary for write\n";
         return Status::OK;
     }
 
@@ -54,16 +54,16 @@ class WifsServiceImplementation final : public WIFS::Service {
         ClientContext client_context;
         std::cout << "Received read req" << std::endl;
         Status status = master_client_stub_->wifs_READ(&client_context, *request, reply);
-        if(!status.ok()) std::cout << "couldn't connect to primary for read\n";
-        
+        if (!status.ok()) std::cout << "couldn't connect to primary for read\n";
+
         // just testing if reads are being re-routed
-        if(reply->status() == wifs::ReadRes_Status_RETRY) {
+        if (reply->status() == wifs::ReadRes_Status_RETRY) {
             std::cout << "forwarding read req to other node" << std::endl;
             std::unique_ptr<WIFS::Stub> tmp_stub = WIFS::NewStub(grpc::CreateChannel(reply->node_ip(), grpc::InsecureChannelCredentials()));
             ClientContext client_context;
             Status status = tmp_stub->wifs_READ(&client_context, *request, reply);
         }
-        
+
         return Status::OK;
     }
 };
