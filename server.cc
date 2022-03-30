@@ -302,7 +302,7 @@ void run_pb_server(int server_id) {
     pbServer.AddListeningPort(address, grpc::InsecureServerCredentials());
     pbServer.RegisterService(&service);
     std::unique_ptr<Server> server(pbServer.BuildAndStart());
-    sem_post(&concensus);
+    sem_post(&sem_concensus);
     std::cout << "PB Server listening on port: " << address << std::endl;
     server->Wait();
 }
@@ -312,7 +312,7 @@ void init_connection_with_other_node(std::string other_node_address) {
 }
 
 void concensus(){
-    sem_wait(&concensus);
+    sem_wait(&sem_concensus);
     std::cout << "Election begins. Waiting for mutex release" <<std::endl;
     sem_wait(&mutex_election);
     ClientContext context;
