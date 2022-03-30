@@ -199,7 +199,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
                 std::cout << "Other candidate accepted as PRIMARY. This server BACKUP" << std::endl;
                 reply->set_role(primarybackup::InitRes_Role_BACKUP);
                 reply->set_status(1);
-                make_backup();
+                election_state = "BACKUP";
             }
             else if (election_state == "PRIMARY"){
                 reply->set_status(1);
@@ -292,40 +292,6 @@ void run_pb_server(int server_id) {
     server->Wait();
 }
 
-void check_heartbeat() {
-    //Only BACKUP should call this
-    std::string other_node_address_wi;
-    if (server_id == 1) {
-        other_node_address_wi = ip_server_wifs_1;
-    } else {
-        other_node_address_wi = ip_server_wifs_2;
-    }
-    HeartBeat request;
-    while (true) {
-        if(election_state == "PRIMARY"){
-            return;
-        }
-        HeartBeat reply;
-        heartbeat_stub = WIFS::NewStub(grpc::CreateChannel(other_node_address_wi, grpc::InsecureChannelCredentials()));
-        ClientContext context;
-        Status status = heartbeat_stub->Ping(&context, request, &reply);
-        if (reply.state() == wifs::HeartBeat_State_READY) {
-            std::cout << "Server alive on " << other_node_address_wi << std::endl;
-        } else {
-            std::cout << "No heartbeat on " << other_node_address_wi << std::endl;
-            // Try to be Primary
-            election_state = "CANDIDATE";
-            concensus();
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(HEARTBEAT_TIMER));  
-    }
-}
-
-void make_backup(){
-    election_state = "BACKUP";
-    std::thread hb_thread(check_heartbeat);
-}
-
 void init_connection_with_other_node(std::string other_node_address) {
     client_stub_ = PrimaryBackup::NewStub(grpc::CreateChannel(other_node_address, grpc::InsecureChannelCredentials()));
 }
@@ -354,7 +320,7 @@ void concensus(){
             else if (reply.status() == 1){
                 if (reply.role() == primarybackup::InitRes_Role_PRIMARY){
                     std::cout << "Other server is Primary. This server is now backup" <<std::endl;
-                    make_backup();
+                    election_state = "BACKUP";
                 }
                 else if (reply.role() == primarybackup::InitRes_Role_BACKUP){
                     std::cout << "Other server is Backup. This server is now Primary" <<std::endl;
@@ -376,6 +342,33 @@ void concensus(){
         primary = other_node_address;
     }
     sem_post(&mutex_election);
+}
+
+void check_heartbeat() {
+    std::string other_node_address_wi;
+    if (server_id == 1) {
+        other_node_address_wi = ip_server_wifs_1;
+    } else {
+        other_node_address_wi = ip_server_wifs_2;
+    }
+    HeartBeat request;
+    while (true) {
+        if(election_state == "BACKUP"){
+            HeartBeat reply;
+            heartbeat_stub = WIFS::NewStub(grpc::CreateChannel(other_node_address_wi, grpc::InsecureChannelCredentials()));
+            ClientContext context;
+            Status status = heartbeat_stub->Ping(&context, request, &reply);
+            if (reply.state() == wifs::HeartBeat_State_READY) {
+                std::cout << "Server alive on " << other_node_address_wi << std::endl;
+            } else {
+                std::cout << "No heartbeat on " << other_node_address_wi <<" Try to be Primary, Start elections" << std::endl;
+                // Try to be Primary
+                election_state = "CANDIDATE";
+                concensus();
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(HEARTBEAT_TIMER));  
+    }
 }
 
 void update_state_to_latest() {
@@ -450,14 +443,14 @@ int main(int argc, char** argv) {
     std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server, server_id);
-
+    
     //Create server path if it doesn't exist
     DIR* dir = opendir(getServerDir(server_id).c_str());
     if (ENOENT == errno){
         mkdir(getServerDir(server_id).c_str(),0777);
     }
     run_wifs_server();
-
+    std::thread hb_thread(check_heartbeat);
     // internal_server.join();
     // writer_thread.join();
     return 0;
