@@ -44,7 +44,6 @@ using wifs::WriteRes;
 using wifs::ClientInitReq;
 using wifs::ClientInitRes;
 
-
 using primarybackup::HeartBeatSync;
 using primarybackup::PrimaryBackup;
 using primarybackup::WriteRequest;
@@ -79,6 +78,7 @@ sem_t mutex_election;
 bool other_node_syncing = false;
 
 std::unique_ptr<PrimaryBackup::Stub> client_stub_;
+std::unique_ptr<WIFS::Stub> heartbeat_stub;
 
 class Node {
    public:
@@ -199,7 +199,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
                 std::cout << "Other candidate accepted as PRIMARY. This server BACKUP" << std::endl;
                 reply->set_role(primarybackup::InitRes_Role_BACKUP);
                 reply->set_status(1);
-                election_state = "BACKUP";
+                make_backup();
             }
             else if (election_state == "PRIMARY"){
                 reply->set_status(1);
@@ -292,6 +292,40 @@ void run_pb_server(int server_id) {
     server->Wait();
 }
 
+void make_backup(){
+    election_state = "BACKUP";
+    std::thread hb_thread(check_heartbeat);
+}
+
+void check_heartbeat(int server_id) {
+    //Only BACKUP should call this
+    std::string other_node_address_wi;
+    if (server_id == 1) {
+        other_node_address_wi = ip_server_wifs_1;
+    } else {
+        other_node_address_wi = ip_server_wifs_2;
+    }
+    HeartBeat request;
+    while (true) {
+        if(election_state == "PRIMARY"){
+            return;
+        }
+        HeartBeat reply;
+        heartbeat_stub = WIFS::NewStub(grpc::CreateChannel(other_node_address_wi, grpc::InsecureChannelCredentials()));
+        ClientContext context;
+        Status status = heartbeat_stub->Ping(&context, request, &reply);
+        if (reply.state() == wifs::HeartBeat_State_READY) {
+            std::cout << "Server alive on " << other_node_address_wi << std::endl;
+        } else {
+            std::cout << "No heartbeat on " << other_node_address_wi << std::endl;
+            // Try to be Primary
+            election_state = "CANDIDATE";
+            concensus();
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(HEARTBEAT_TIMER));  
+    }
+}
+
 void init_connection_with_other_node(std::string other_node_address) {
     client_stub_ = PrimaryBackup::NewStub(grpc::CreateChannel(other_node_address, grpc::InsecureChannelCredentials()));
 }
@@ -302,10 +336,7 @@ void concensus(){
     ClientContext context;
     InitReq request;
     InitRes reply;
-    // 1. Sleep to wait for an incoming heartbeat
-    sleep(1);
-    // 2. If heartbeat had come during the timeout, election_state would be updated
-    // 3. Election state is not updated, so no heartbeat has come
+    //Start elections if PRIMARY (other server) has no heartbeat or during INIT.
     if (election_state == "INIT" or election_state == "CANDIDATE"){
         std::cout << "No heartbeat received. Server is a candidate" <<std::endl;
         election_state = "CANDIDATE";
@@ -323,7 +354,7 @@ void concensus(){
             else if (reply.status() == 1){
                 if (reply.role() == primarybackup::InitRes_Role_PRIMARY){
                     std::cout << "Other server is Primary. This server is now backup" <<std::endl;
-                    election_state = "BACKUP";
+                    make_backup();
                 }
                 else if (reply.role() == primarybackup::InitRes_Role_BACKUP){
                     std::cout << "Other server is Backup. This server is now Primary" <<std::endl;
