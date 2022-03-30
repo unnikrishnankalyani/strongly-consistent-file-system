@@ -292,11 +292,6 @@ void run_pb_server(int server_id) {
     server->Wait();
 }
 
-void make_backup(){
-    election_state = "BACKUP";
-    std::thread hb_thread(check_heartbeat);
-}
-
 void check_heartbeat() {
     //Only BACKUP should call this
     std::string other_node_address_wi;
@@ -324,6 +319,11 @@ void check_heartbeat() {
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(HEARTBEAT_TIMER));  
     }
+}
+
+void make_backup(){
+    election_state = "BACKUP";
+    std::thread hb_thread(check_heartbeat);
 }
 
 void init_connection_with_other_node(std::string other_node_address) {
