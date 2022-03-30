@@ -347,9 +347,9 @@ void concensus(){
 void check_heartbeat() {
     std::string other_node_address_wi;
     if (server_id == 1) {
-        other_node_address_wi = ip_server_wifs_1;
-    } else {
         other_node_address_wi = ip_server_wifs_2;
+    } else {
+        other_node_address_wi = ip_server_wifs_1;
     }
     HeartBeat request;
     while (true) {
