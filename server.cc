@@ -73,8 +73,10 @@ sem_t sem_log_queue;
 sem_t mutex_queue;
 sem_t mutex_log_queue;
 
-
+//used to ensure node doesn't respond to candidate request while it is a candidate itself
 sem_t mutex_election;
+
+//
 
 bool other_node_syncing = false;
 
@@ -193,6 +195,14 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
     Status Init(ServerContext* context, const InitReq* request, InitRes* reply){
         // int pending_writes = 0;
         // sem_getvalue(&sem_log_queue, &pending_writes);
+        int sem_value;
+        sem_getvalue(&mutex_election,&sem_value);
+        if (sem_value == 0){
+            election_state = "CANDIDATE";
+            reply->set_status(0);
+            return Status::OK;
+        }
+        sem_wait(&mutex_election);
         std::cout << "Election RPC Received!" <<std::endl;
         if (request->role() == primarybackup::InitReq_Role_LEADER) {
             if(election_state == "INIT" or election_state=="BACKUP"){
@@ -210,6 +220,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
                 reply->set_status(0);
             }
         }
+        sem_post(&mutex_election);
         return Status::OK;     
     }
 };
@@ -249,8 +260,10 @@ class WifsServiceImplementation final : public WIFS::Service {
 
         std::string buffer(BLOCK_SIZE, ' ');
         std::ifstream file_inp(path);
+        std::cout << "File name: " << path <<std::endl;
         file_inp.seekg(request->address());
         file_inp.read(&buffer[0], BLOCK_SIZE);
+        std::cout << "Reading: " << buffer <<std::endl;
         
         reply->set_status(0);
         reply->set_buf(buffer);
@@ -276,6 +289,7 @@ void run_wifs_server(int server_id) {
 }
 
 void run_pb_server(int server_id) {
+
     std::string node_address;
     if (server_id == 1) {
         node_address = ip_server_pb_1;
@@ -316,9 +330,9 @@ void concensus(){
             if(reply.status() == 0) {
                 std::cout << "Both servers are candidates simultaneously! Retrying Election" <<std::endl;
                 sem_post(&mutex_election);
-                int randTime = rand() % 1000 + 1;
-                sleep(randTime * 1e-3);
-                concensus();
+                int randTime = 10000 + rand() % 100000;
+                usleep(randTime);
+                return concensus();
             }
             else if (reply.status() == 1){
                 if (reply.role() == primarybackup::InitRes_Role_PRIMARY){
