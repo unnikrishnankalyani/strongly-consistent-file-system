@@ -48,6 +48,8 @@ using primarybackup::WriteResponse;
 
 char root_path[MAX_PATH_LENGTH];
 std::string server_state = "INIT";
+std::string other_node_address;
+std::string cur_node_wifs_address;
 
 int server_id = 0;
 
@@ -61,9 +63,16 @@ sem_t sem_log_queue;
 sem_t mutex_queue;
 sem_t mutex_log_queue;
 
+sem_t mutex_pending_grpc_write;
+int pending_write_address = -1;
+
 bool other_node_syncing = false;
 
 std::unique_ptr<PrimaryBackup::Stub> client_stub_;
+
+void init_connection_with_other_node() {
+    client_stub_ = PrimaryBackup::NewStub(grpc::CreateChannel(other_node_address, grpc::InsecureChannelCredentials()));
+}
 
 class Node {
    public:
@@ -110,6 +119,12 @@ int remote_write(const WriteRequest& write_req) {
     ClientContext context;
     Status status = client_stub_->Write(&context, write_req, &reply);
     // assuming the write never fails when the connection goes through.
+    // if call fails, try one more time
+    if (!status.ok()) {
+        init_connection_with_other_node();
+        ClientContext context;
+        status = client_stub_->Write(&context, write_req, &reply);
+    }
     return status.ok() ? 0 : -1;
 }
 
@@ -119,19 +134,30 @@ int append_write_request(const WriteReq* request) {
     Node node(request, promise_obj);
 
     sem_wait(&mutex_queue);
-    
+
     write_queue.push(&node);
+    sem_post(&sem_queue);
+
     // write request to other node
     WriteRequest write_request;
     write_request.set_blk_address(request->address());
     write_request.set_buffer(request->buf());
+
+    sem_wait(&mutex_pending_grpc_write);
+    pending_write_address = request->address();
+    sem_post(&mutex_pending_grpc_write);
+
     if (remote_write(write_request) == -1) {
+        std::cout << "appending to failure log\n";
         log_queue.push(write_request);
         sem_post(&sem_log_queue);
     }
-    sem_post(&sem_queue);
     sem_post(&mutex_queue);
-    
+
+    sem_wait(&mutex_pending_grpc_write);
+    pending_write_address = -1;
+    sem_post(&mutex_pending_grpc_write);
+
     return future_obj.get();
 }
 
@@ -184,20 +210,37 @@ class WifsServiceImplementation final : public WIFS::Service {
 
     Status wifs_WRITE(ServerContext* context, const WriteReq* request,
                       WriteRes* reply) override {
-        reply->set_status(-1);
+        // check if this is primary or not, and then only do the write.
+        // make this change after merging with Adil's branch.
+        reply->set_status(wifs::WriteRes_Status_FAIL);
         if (append_write_request(request) == -1) return Status::OK;
-        reply->set_status(0);
+        reply->set_status(wifs::WriteRes_Status_PASS);
         return Status::OK;
     }
 
     Status wifs_READ(ServerContext* context, const ReadReq* request,
                      ReadRes* reply) override {
+        bool is_grpc_write_pending = false;
+        sem_wait(&mutex_pending_grpc_write);
+        is_grpc_write_pending = pending_write_address == request->address();
+        sem_post(&mutex_pending_grpc_write);
+
+        if (is_grpc_write_pending) {
+            // if the other node is down, then the client library should make a thrird call to the
+            // earlier node, it will most probably be served.
+            // this will happen when the other node is down, is_grpc_write_pending is set, and a read is called
+            // before pushing the write to failure log and resetting is_grpc_write_pending.
+            reply->set_status(wifs::ReadRes_Status_RETRY);
+            reply->set_node_ip(cur_node_wifs_address == ip_server_wifs_1 ? ip_server_wifs_2 : ip_server_wifs_1);
+            return Status::OK;
+        }
+
         const auto path = getServerPath(std::to_string(request->address()), server_id);
         std::cout << "WIFS server PATH READ: " << path << std::endl;
 
         const int fd = ::open(path.c_str(), O_RDONLY);
         if (fd == -1) {
-            reply->set_status(-1);
+            reply->set_status(wifs::ReadRes_Status_FAIL);
             return Status::OK;
         }
 
@@ -205,7 +248,7 @@ class WifsServiceImplementation final : public WIFS::Service {
         buffer.reserve(BLOCK_SIZE);
         std::ifstream file_inp(path);
         buffer.assign((std::istreambuf_iterator<char>(file_inp)), std::istreambuf_iterator<char>());
-        reply->set_status(0);
+        reply->set_status(wifs::ReadRes_Status_PASS);
         reply->set_buf(buffer);
         return Status::OK;
     }
@@ -235,6 +278,7 @@ void run_pb_server(int server_id) {
     } else {
         node_address = ip_server_pb_2;
     }
+    cur_node_wifs_address = node_address;
     std::string address(node_address);
     PrimarybackupServiceImplementation service;
     ServerBuilder pbServer;
@@ -245,11 +289,7 @@ void run_pb_server(int server_id) {
     server->Wait();
 }
 
-void init_connection_with_other_node(std::string other_node_address) {
-    client_stub_ = PrimaryBackup::NewStub(grpc::CreateChannel(other_node_address, grpc::InsecureChannelCredentials()));
-}
-
-void update_state_to_latest() {
+void update_state_to_latest(int retry_count) {
     HeartBeatSync request;
     ClientContext context;
     std::unique_ptr<ClientReader<WriteRequest> > reader(client_stub_->Sync(&context, request));
@@ -270,9 +310,12 @@ void update_state_to_latest() {
     Status status = reader->Finish();
     if (!status.ok()) {
         // implies that the other node is not up
+        std::cout << "not able to contant other node\n";
         server_state = "READY";
+        if (!retry_count) return update_state_to_latest(1);
         return;
-    }
+    } else
+        std::cout << "was able to contant other node\n";
 
     // now check if there are any pending log entries that the other node received when we were busy doing the above sync.
     HeartBeatSync pending_writes;
@@ -285,13 +328,14 @@ void update_state_to_latest() {
     }
 
     // still has writes pending
-    return update_state_to_latest();
+    return update_state_to_latest(0);
 }
 
 int main(int argc, char** argv) {
     sem_init(&sem_queue, 0, 0);
     sem_init(&mutex_queue, 0, 1);
     sem_init(&mutex_log_queue, 0, 1);
+    sem_init(&mutex_pending_grpc_write, 0, 1);
     if (argc < 2) {
         std::cout << "Machine id not given\n";
         exit(1);
@@ -300,7 +344,6 @@ int main(int argc, char** argv) {
     server_id = atoi(argv[1]);
     std::cout << "got machine id as " << server_id << "\n";
 
-    std::string other_node_address;
     if (server_id == 1) {
         other_node_address = ip_server_pb_2;
     } else {
@@ -308,16 +351,16 @@ int main(int argc, char** argv) {
     }
     std::cout << "got other node's address as " << other_node_address << "\n";
 
-    init_connection_with_other_node(other_node_address);
-    update_state_to_latest();
+    init_connection_with_other_node();
+    update_state_to_latest(0);
     std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server, server_id);
-    
-    //Create server path if it doesn't exist
+
+    // Create server path if it doesn't exist
     DIR* dir = opendir(getServerDir(server_id).c_str());
-    if (ENOENT == errno){
-        mkdir(getServerDir(server_id).c_str(),0777);
+    if (ENOENT == errno) {
+        mkdir(getServerDir(server_id).c_str(), 0777);
     }
     run_wifs_server(server_id);
 

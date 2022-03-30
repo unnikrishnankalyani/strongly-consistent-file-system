@@ -113,3 +113,12 @@ target_link_libraries(master
   ${_REFLECTION}
   ${_GRPC_GRPCPP}
   ${_PROTOBUF_LIBPROTOBUF})
+
+# client manual, easy for manual testing. spin up server and then client
+add_executable(client_manual "client_manual.cc")
+target_link_libraries(client_manual
+  ${PTHREAD_LIB}
+  wifs_grpc_proto
+  ${_REFLECTION}
+  ${_GRPC_GRPCPP}
+  ${_PROTOBUF_LIBPROTOBUF})

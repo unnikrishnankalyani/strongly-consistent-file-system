@@ -44,6 +44,7 @@ class WifsServiceImplementation final : public WIFS::Service {
         ClientContext client_context;
         std::cout << "Received write req" << std::endl;
         Status status = master_client_stub_->wifs_WRITE(&client_context, *request, reply);
+        if (!status.ok()) std::cout << "couldn't connect to primary for write\n";
         return Status::OK;
     }
 
@@ -53,6 +54,16 @@ class WifsServiceImplementation final : public WIFS::Service {
         ClientContext client_context;
         std::cout << "Received read req" << std::endl;
         Status status = master_client_stub_->wifs_READ(&client_context, *request, reply);
+        if (!status.ok()) std::cout << "couldn't connect to primary for read\n";
+
+        // just testing if reads are being re-routed
+        if (reply->status() == wifs::ReadRes_Status_RETRY) {
+            std::cout << "forwarding read req to other node" << std::endl;
+            std::unique_ptr<WIFS::Stub> tmp_stub = WIFS::NewStub(grpc::CreateChannel(reply->node_ip(), grpc::InsecureChannelCredentials()));
+            ClientContext client_context;
+            Status status = tmp_stub->wifs_READ(&client_context, *request, reply);
+        }
+
         return Status::OK;
     }
 };
@@ -81,7 +92,7 @@ void check_heartbeats() {
         heartbeat_client_stub_s2_ = WIFS::NewStub(grpc::CreateChannel(ip_server_wifs_2, grpc::InsecureChannelCredentials()));
         ClientContext context1, context2;
         Status status1 = heartbeat_client_stub_s1_->Ping(&context1, request, &reply1);
-        if (reply1.state() == wifs::HeartBeat_State_READY) {
+        if (status1.ok() && reply1.state() == wifs::HeartBeat_State_READY) {
             std::cout << "Server 1 alive!" << std::endl;
             if (!primary_server) {
                 primary_address = ip_server_wifs_1;
@@ -98,7 +109,7 @@ void check_heartbeats() {
         }
 
         Status status2 = heartbeat_client_stub_s2_->Ping(&context2, request, &reply2);
-        if (reply2.state() == wifs::HeartBeat_State_READY) {
+        if (status2.ok() && reply2.state() == wifs::HeartBeat_State_READY) {
             std::cout << "Server 2 alive!" << std::endl;
             if (!primary_server) {
                 primary_address = ip_server_wifs_2;
