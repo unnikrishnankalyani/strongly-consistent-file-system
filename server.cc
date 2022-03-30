@@ -61,6 +61,9 @@ sem_t sem_log_queue;
 sem_t mutex_queue;
 sem_t mutex_log_queue;
 
+sem_t mutex_pending_grpc_write;
+int pending_write_address = -1;
+
 bool other_node_syncing = false;
 
 std::unique_ptr<PrimaryBackup::Stub> client_stub_;
@@ -121,22 +124,33 @@ int append_write_request(const WriteReq* request) {
     sem_wait(&mutex_queue);
 
     write_queue.push(&node);
+    sem_post(&sem_queue);
+    
     // write request to other node
     WriteRequest write_request;
     write_request.set_blk_address(request->address());
     write_request.set_buffer(request->buf());
+    
+    sem_wait(&mutex_pending_grpc_write);
+    pending_write_address = request->address();
+    sem_post(&mutex_pending_grpc_write);
+    
     if (remote_write(write_request) == -1) {
         log_queue.push(write_request);
         sem_post(&sem_log_queue);
     }
-    sem_post(&sem_queue);
     sem_post(&mutex_queue);
+
+    sem_wait(&mutex_pending_grpc_write);
+    pending_write_address = -1;
+    sem_post(&mutex_pending_grpc_write);
 
     return future_obj.get();
 }
 
 class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
     Status Write(ServerContext* context, const WriteRequest* request, WriteResponse* reply) {
+        while(true);
         std::promise<int> promise_obj;
         std::future<int> future_obj = promise_obj.get_future();
 
@@ -194,8 +208,22 @@ class WifsServiceImplementation final : public WIFS::Service {
 
     Status wifs_READ(ServerContext* context, const ReadReq* request,
                      ReadRes* reply) override {
-        // don't service the read if this is the primary and there is a pending write
-        // operation on the grpc queue
+        
+        bool is_grpc_write_pending = false;
+        sem_wait(&mutex_pending_grpc_write);
+        is_grpc_write_pending = pending_write_address == request->address();
+        sem_post(&mutex_pending_grpc_write);
+
+        if(is_grpc_write_pending) {
+            // if the other node is down, then the client library should make a thrird call to the 
+            // earlier node, it will most probably be served. 
+            // this will happen when the other node is down, is_grpc_write_pending is set, and a read is called 
+            // before pushing the write to failure log and resetting is_grpc_write_pending. 
+            reply->set_status(wifs::ReadRes_Status_RETRY);
+            reply->set_node_ip(ip_server_wifs_2);
+            return Status::OK;
+        }
+
         const auto path = getServerPath(std::to_string(request->address()), server_id);
         std::cout << "WIFS server PATH READ: " << path << std::endl;
 
@@ -296,6 +324,7 @@ int main(int argc, char** argv) {
     sem_init(&sem_queue, 0, 0);
     sem_init(&mutex_queue, 0, 1);
     sem_init(&mutex_log_queue, 0, 1);
+    sem_init(&mutex_pending_grpc_write, 0, 1);
     if (argc < 2) {
         std::cout << "Machine id not given\n";
         exit(1);
