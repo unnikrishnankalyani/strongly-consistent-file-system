@@ -76,7 +76,8 @@ sem_t mutex_log_queue;
 //used to ensure node doesn't respond to candidate request while it is a candidate itself
 sem_t mutex_election;
 
-//
+//ensure that concensus happens only after the PB interfaces are up
+sem_t sem_concensus;
 
 bool other_node_syncing = false;
 
@@ -289,7 +290,6 @@ void run_wifs_server(int server_id) {
 }
 
 void run_pb_server(int server_id) {
-
     std::string node_address;
     if (server_id == 1) {
         node_address = ip_server_pb_1;
@@ -302,6 +302,7 @@ void run_pb_server(int server_id) {
     pbServer.AddListeningPort(address, grpc::InsecureServerCredentials());
     pbServer.RegisterService(&service);
     std::unique_ptr<Server> server(pbServer.BuildAndStart());
+    sem_post(&concensus);
     std::cout << "PB Server listening on port: " << address << std::endl;
     server->Wait();
 }
@@ -311,6 +312,7 @@ void init_connection_with_other_node(std::string other_node_address) {
 }
 
 void concensus(){
+    sem_wait(&concensus);
     std::cout << "Election begins. Waiting for mutex release" <<std::endl;
     sem_wait(&mutex_election);
     ClientContext context;
@@ -330,6 +332,7 @@ void concensus(){
             if(reply.status() == 0) {
                 std::cout << "Both servers are candidates simultaneously! Retrying Election" <<std::endl;
                 sem_post(&mutex_election);
+                sem_post(&sem_concensus);
                 int randTime = 10000 + rand() % 100000;
                 usleep(randTime);
                 return concensus();
@@ -359,6 +362,7 @@ void concensus(){
         primary = other_node_address;
     }
     sem_post(&mutex_election);
+    sem_post(&sem_concensus);
 }
 
 void update_state_to_latest() {
@@ -408,6 +412,7 @@ int main(int argc, char** argv) {
     sem_init(&mutex_queue, 0, 1);
     sem_init(&mutex_log_queue, 0, 1);
     sem_init(&mutex_election,0,1);
+    sem_init(&sem_concensus,0,0);
 
     if (argc < 2) {
         std::cout << "Machine id not given\n";
@@ -427,13 +432,13 @@ int main(int argc, char** argv) {
     std::cout << "got other node's address as " << other_node_address << "\n";
     
     init_connection_with_other_node(other_node_address);
-    concensus();
+    
     update_state_to_latest();
     
     std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server, server_id);
-
+    concensus();
     //Create server path if it doesn't exist
     DIR* dir = opendir(getServerDir(server_id).c_str());
     if (ENOENT == errno){
