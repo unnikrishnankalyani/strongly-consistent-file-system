@@ -46,7 +46,7 @@ class Server():
     def run_server(self):
         self.server = Popen([os.path.abspath('../cmake/build/server'), \
             str(self.server_id)], shell=False, close_fds=True)#, stdout=DEVNULL, stderr=STDOUT)
-        # self.server.communicate()
+        #self.server.communicate()
 
 class Client(threading.Thread):
     def __init__(self):
@@ -62,9 +62,6 @@ class Client(threading.Thread):
         self.address = get_offset(address)
         self.read_buf = get_read_buffer(4096)
         self.libclient.do_read(self.address, self.read_buf)
-
-        print(self.read_buf)
-
         self.read_buf = self.read_buf.value.decode("utf-8")
     
     def write(self, address, buffer):

@@ -73,8 +73,11 @@ sem_t sem_log_queue;
 sem_t mutex_queue;
 sem_t mutex_log_queue;
 
-
+//used to ensure node doesn't respond to candidate request while it is a candidate itself
 sem_t mutex_election;
+
+//ensure that concensus happens only after the PB interfaces are up
+sem_t sem_concensus;
 
 bool other_node_syncing = false;
 
@@ -193,6 +196,14 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
     Status Init(ServerContext* context, const InitReq* request, InitRes* reply){
         // int pending_writes = 0;
         // sem_getvalue(&sem_log_queue, &pending_writes);
+        int sem_value;
+        sem_getvalue(&mutex_election,&sem_value);
+        if (sem_value == 0){
+            election_state = "CANDIDATE";
+            reply->set_status(0);
+            return Status::OK;
+        }
+        sem_wait(&mutex_election);
         std::cout << "Election RPC Received!" <<std::endl;
         if (request->role() == primarybackup::InitReq_Role_LEADER) {
             if(election_state == "INIT" or election_state=="BACKUP"){
@@ -210,6 +221,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
                 reply->set_status(0);
             }
         }
+        sem_post(&mutex_election);
         return Status::OK;     
     }
 };
@@ -249,8 +261,10 @@ class WifsServiceImplementation final : public WIFS::Service {
 
         std::string buffer(BLOCK_SIZE, ' ');
         std::ifstream file_inp(path);
+        std::cout << "File name: " << path <<std::endl;
         file_inp.seekg(request->address());
         file_inp.read(&buffer[0], BLOCK_SIZE);
+        std::cout << "Reading: " << buffer <<std::endl;
         
         reply->set_status(0);
         reply->set_buf(buffer);
@@ -288,6 +302,7 @@ void run_pb_server(int server_id) {
     pbServer.AddListeningPort(address, grpc::InsecureServerCredentials());
     pbServer.RegisterService(&service);
     std::unique_ptr<Server> server(pbServer.BuildAndStart());
+    sem_post(&sem_concensus);
     std::cout << "PB Server listening on port: " << address << std::endl;
     server->Wait();
 }
@@ -297,6 +312,7 @@ void init_connection_with_other_node(std::string other_node_address) {
 }
 
 void concensus(){
+    sem_wait(&sem_concensus);
     std::cout << "Election begins. Waiting for mutex release" <<std::endl;
     sem_wait(&mutex_election);
     ClientContext context;
@@ -316,9 +332,10 @@ void concensus(){
             if(reply.status() == 0) {
                 std::cout << "Both servers are candidates simultaneously! Retrying Election" <<std::endl;
                 sem_post(&mutex_election);
-                int randTime = rand() % 1000 + 1;
-                sleep(randTime * 1e-3);
-                concensus();
+                sem_post(&sem_concensus);
+                int randTime = 10000 + rand() % 100000;
+                usleep(randTime);
+                return concensus();
             }
             else if (reply.status() == 1){
                 if (reply.role() == primarybackup::InitRes_Role_PRIMARY){
@@ -345,6 +362,7 @@ void concensus(){
         primary = other_node_address;
     }
     sem_post(&mutex_election);
+    sem_post(&sem_concensus);
 }
 
 void update_state_to_latest() {
@@ -394,6 +412,7 @@ int main(int argc, char** argv) {
     sem_init(&mutex_queue, 0, 1);
     sem_init(&mutex_log_queue, 0, 1);
     sem_init(&mutex_election,0,1);
+    sem_init(&sem_concensus,0,0);
 
     if (argc < 2) {
         std::cout << "Machine id not given\n";
@@ -413,13 +432,13 @@ int main(int argc, char** argv) {
     std::cout << "got other node's address as " << other_node_address << "\n";
     
     init_connection_with_other_node(other_node_address);
-    concensus();
+    
     update_state_to_latest();
     
     std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server, server_id);
-
+    concensus();
     //Create server path if it doesn't exist
     DIR* dir = opendir(getServerDir(server_id).c_str());
     if (ENOENT == errno){
