@@ -119,7 +119,7 @@ int append_write_request(const WriteReq* request) {
     Node node(request, promise_obj);
 
     sem_wait(&mutex_queue);
-    
+
     write_queue.push(&node);
     // write request to other node
     WriteRequest write_request;
@@ -131,7 +131,7 @@ int append_write_request(const WriteReq* request) {
     }
     sem_post(&sem_queue);
     sem_post(&mutex_queue);
-    
+
     return future_obj.get();
 }
 
@@ -184,20 +184,24 @@ class WifsServiceImplementation final : public WIFS::Service {
 
     Status wifs_WRITE(ServerContext* context, const WriteReq* request,
                       WriteRes* reply) override {
-        reply->set_status(-1);
+        // check if this is primary or not, and then only do the write.
+        // make this change after merging with Adil's branch.
+        reply->set_status(wifs::WriteRes_Status_FAIL);
         if (append_write_request(request) == -1) return Status::OK;
-        reply->set_status(0);
+        reply->set_status(wifs::WriteRes_Status_PASS);
         return Status::OK;
     }
 
     Status wifs_READ(ServerContext* context, const ReadReq* request,
                      ReadRes* reply) override {
+        // don't service the read if this is the primary and there is a pending write
+        // operation on the grpc queue
         const auto path = getServerPath(std::to_string(request->address()), server_id);
         std::cout << "WIFS server PATH READ: " << path << std::endl;
 
         const int fd = ::open(path.c_str(), O_RDONLY);
         if (fd == -1) {
-            reply->set_status(-1);
+            reply->set_status(wifs::ReadRes_Status_FAIL);
             return Status::OK;
         }
 
@@ -205,7 +209,7 @@ class WifsServiceImplementation final : public WIFS::Service {
         buffer.reserve(BLOCK_SIZE);
         std::ifstream file_inp(path);
         buffer.assign((std::istreambuf_iterator<char>(file_inp)), std::istreambuf_iterator<char>());
-        reply->set_status(0);
+        reply->set_status(wifs::ReadRes_Status_PASS);
         reply->set_buf(buffer);
         return Status::OK;
     }
@@ -313,11 +317,11 @@ int main(int argc, char** argv) {
     std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server, server_id);
-    
-    //Create server path if it doesn't exist
+
+    // Create server path if it doesn't exist
     DIR* dir = opendir(getServerDir(server_id).c_str());
-    if (ENOENT == errno){
-        mkdir(getServerDir(server_id).c_str(),0777);
+    if (ENOENT == errno) {
+        mkdir(getServerDir(server_id).c_str(), 0777);
     }
     run_wifs_server(server_id);
 
