@@ -45,12 +45,9 @@ class Server():
             str(self.server_id)], shell=False, close_fds=True)#, stdout=DEVNULL, stderr=STDOUT)
         #self.server.communicate()
 
-class Client(threading.Thread):
+class Client():
     def __init__(self):
-        threading.Thread.__init__(self)
         self.libclient = CDLL(os.path.abspath("../cmake/build/libclient.so"))
-        # self.ip = c_char_p(address.encode('utf-8'))
-        self.libclient.init()
 
     def read(self, address):
         self.address = get_offset(address)
@@ -62,6 +59,3 @@ class Client(threading.Thread):
         address = get_offset(address)
         write_buf = get_write_buffer(buffer)
         self.libclient.do_write(address, write_buf)
-    
-    def init(self):
-        self.libclient.init()

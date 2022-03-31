@@ -5,8 +5,8 @@
 #include <chrono>
 #include <thread>
 
-#include "commonheaders.h"
 #include "wifs.grpc.pb.h"
+#include "commonheaders.h"
 
 using grpc::Channel;
 using grpc::ClientContext;
@@ -40,7 +40,14 @@ class WifsClient {
         request.set_address(address);
         Status status = stub_->wifs_READ(&context, request, &reply);
         strncpy(buf, reply.buf().c_str(), BLOCK_SIZE);
-        return status.ok() ? 0 : -1;
+        if (status.ok()){
+            if (reply.primary_ip() == primary_server){
+                return 0;
+            }
+            else
+                return 1;
+        }
+        return -1;
     }
 
     int wifs_WRITE(int address, char buf[BLOCK_SIZE]) {
@@ -52,7 +59,14 @@ class WifsClient {
         request.set_address(address);
         request.set_buf(std::string(buf));
         Status status = stub_->wifs_WRITE(&context, request, &reply);
-        return status.ok() ? 0 : -1;
+        if (status.ok()){
+            if (reply.status() == wifs::WriteRes_Status_RETRY){
+                return 1;
+            }
+            else
+                return 0;
+        }
+        return -1;
     }
 
     int wifs_INIT(const char buf[MAX_PATH_LENGTH]){

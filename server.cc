@@ -53,11 +53,12 @@ using primarybackup::InitRes;
 char root_path[MAX_PATH_LENGTH];
 std::string server_state = "INIT";
 std::string election_state = "INIT";
+
 std::string other_node_address;
 std::string this_node_address;
+std::string cur_node_wifs_address;
+std::string other_node_wifs_address;
 std::string primary = "";
-
-Role role;
 
 int server_id = 0;
 
@@ -71,12 +72,14 @@ sem_t sem_log_queue;
 sem_t mutex_queue;
 sem_t mutex_log_queue;
 
+sem_t mutex_pending_grpc_write;
 //used to ensure node doesn't respond to candidate request while it is a candidate itself
 sem_t mutex_election;
 
 //ensure that concensus happens only after the PB interfaces are up
 sem_t sem_concensus;
 
+int pending_write_address = -1;
 bool other_node_syncing = false;
 
 std::unique_ptr<PrimaryBackup::Stub> client_stub_;
@@ -256,9 +259,22 @@ class WifsServiceImplementation final : public WIFS::Service {
                       WriteRes* reply) override {
         // check if this is primary or not, and then only do the write.
         // make this change after merging with Adil's branch.
+        sem_wait(&mutex_election);
+        if (election_state != "PRIMARY"){
+            reply->set_status(wifs::WriteRes_Status_RETRY); //retry with the primary IP provided in the next line
+            reply->set_primary_ip(primary);
+            sem_post(&mutex_election);
+            return Status::OK;
+        }
+        sem_post(&mutex_election);
+        
+
         reply->set_status(wifs::WriteRes_Status_FAIL);
         if (append_write_request(request) == -1) return Status::OK;
         reply->set_status(wifs::WriteRes_Status_PASS);
+
+        
+
         return Status::OK;
     }
 
@@ -276,6 +292,11 @@ class WifsServiceImplementation final : public WIFS::Service {
         sem_wait(&mutex_pending_grpc_write);
         is_grpc_write_pending = pending_write_address == request->address();
         sem_post(&mutex_pending_grpc_write);
+
+        sem_wait(&mutex_election);
+        reply->set_primary_ip(primary);
+        std::cout<< "Primary IP is " << primary << std::endl;
+        sem_post(&mutex_election);
 
         if (is_grpc_write_pending) {
             // if the other node is down, then the client library should make a thrird call to the
@@ -309,8 +330,10 @@ void run_wifs_server() {
     std::string node_address;
     if (server_id == 1) {
         node_address = ip_server_wifs_1;
+        other_node_wifs_address = ip_server_wifs_2;
     } else {
         node_address = ip_server_wifs_2;
+        other_node_wifs_address = ip_server_wifs_1;
     }
     std::string address(node_address);
     WifsServiceImplementation service;
@@ -319,6 +342,16 @@ void run_wifs_server() {
     wifsServer.RegisterService(&service);
     std::unique_ptr<Server> server(wifsServer.BuildAndStart());
     std::cout << "WIFS Server listening on port: " << address << std::endl;
+    sem_wait(&mutex_election);
+    if(election_state == "PRIMARY"){
+        primary = node_address;
+
+    }
+    if(election_state == "BACKUP"){
+        primary = other_node_wifs_address;
+    }
+    sem_post(&mutex_election);
+
     server->Wait();
 }
 
@@ -385,13 +418,13 @@ void concensus(){
         }
         
     }
-    if(election_state == "PRIMARY"){
-        primary = this_node_address;
+    // if(election_state == "PRIMARY"){
+    //     primary = cur_node_wifs_address;
 
-    }
-    if(election_state == "BACKUP"){
-        primary = other_node_address;
-    }
+    // }
+    // if(election_state == "BACKUP"){
+    //     primary = other_node_wifs_address;
+    // }
     sem_post(&mutex_election);
     sem_post(&sem_concensus);
 }
@@ -418,7 +451,7 @@ void check_heartbeat() {
     }
 }
 
-void update_state_to_latest() {
+void update_state_to_latest(int retry_count) {
     HeartBeat request;
     ClientContext context;
     std::unique_ptr<ClientReader<WriteRequest> > reader(client_stub_->Sync(&context, request));
@@ -490,7 +523,7 @@ int main(int argc, char** argv) {
     
     init_connection_with_other_node(other_node_address);
     
-    update_state_to_latest();
+    update_state_to_latest(0);
     
     std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);

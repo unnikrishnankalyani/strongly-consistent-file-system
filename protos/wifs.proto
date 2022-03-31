@@ -37,6 +37,8 @@ message WriteRes {
   bytes buf = 2;
 
   bytes node_ip = 3;
+
+  bytes primary_ip = 4;
 }
 
 message ReadReq {
@@ -58,4 +60,6 @@ message ReadRes {
   bytes buf = 2;
 
   bytes node_ip = 3;
+
+  bytes primary_ip = 4;
 }
