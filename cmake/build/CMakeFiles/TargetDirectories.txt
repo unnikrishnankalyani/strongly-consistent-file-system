@@ -1,7 +1,0 @@
-/users/oahmed4/Strongly-Consistent-FS/cmake/build/CMakeFiles/rebuild_cache.dir
-/users/oahmed4/Strongly-Consistent-FS/cmake/build/CMakeFiles/edit_cache.dir
-/users/oahmed4/Strongly-Consistent-FS/cmake/build/CMakeFiles/wifs_grpc_proto.dir
-/users/oahmed4/Strongly-Consistent-FS/cmake/build/CMakeFiles/primarybackup_grpc_proto.dir
-/users/oahmed4/Strongly-Consistent-FS/cmake/build/CMakeFiles/master.dir
-/users/oahmed4/Strongly-Consistent-FS/cmake/build/CMakeFiles/server.dir
-/users/oahmed4/Strongly-Consistent-FS/cmake/build/CMakeFiles/client.dir
