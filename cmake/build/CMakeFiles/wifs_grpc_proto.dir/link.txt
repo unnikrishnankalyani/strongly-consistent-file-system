@@ -1,0 +1,2 @@
+/usr/bin/ar qc libwifs_grpc_proto.a CMakeFiles/wifs_grpc_proto.dir/wifs.grpc.pb.cc.o CMakeFiles/wifs_grpc_proto.dir/wifs.pb.cc.o
+/usr/bin/ranlib libwifs_grpc_proto.a

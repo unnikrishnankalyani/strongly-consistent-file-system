@@ -1,0 +1,2 @@
+/usr/bin/ar qc libprimarybackup_grpc_proto.a CMakeFiles/primarybackup_grpc_proto.dir/primarybackup.grpc.pb.cc.o CMakeFiles/primarybackup_grpc_proto.dir/primarybackup.pb.cc.o
+/usr/bin/ranlib libprimarybackup_grpc_proto.a

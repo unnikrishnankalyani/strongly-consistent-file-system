@@ -37,6 +37,7 @@ int do_read(int address, char* buf) {
     int rc = options.wifsclient->wifs_READ(address, buf);
     return rc;    
 }
+	
 
 int do_write(int address, char* buf) {
     int rc = options.wifsclient->wifs_WRITE(address, buf);

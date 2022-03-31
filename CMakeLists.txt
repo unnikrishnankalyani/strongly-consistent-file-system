@@ -35,7 +35,6 @@ set(wifs_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/wifs.pb.h")
 set(wifs_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/wifs.grpc.pb.cc")
 set(wifs_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/wifs.grpc.pb.h")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
 add_custom_command(
       OUTPUT "${wifs_proto_srcs}" "${wifs_proto_hdrs}" "${wifs_grpc_srcs}" "${wifs_grpc_hdrs}"
       COMMAND ${_PROTOBUF_PROTOC}
@@ -111,6 +110,15 @@ target_link_libraries(master
   ${PTHREAD_LIB}
   wifs_grpc_proto
   primarybackup_grpc_proto
+  ${_REFLECTION}
+  ${_GRPC_GRPCPP}
+  ${_PROTOBUF_LIBPROTOBUF})
+
+# client manual, easy for manual testing. spin up server and then client
+add_executable(client_manual "client_manual.cc")
+target_link_libraries(client_manual
+  ${PTHREAD_LIB}
+  wifs_grpc_proto
   ${_REFLECTION}
   ${_GRPC_GRPCPP}
   ${_PROTOBUF_LIBPROTOBUF})

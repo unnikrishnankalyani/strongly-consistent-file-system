@@ -32,6 +32,8 @@ class WifsClient {
     int retries = 1;
 
     int wifs_READ(int address, char buf[BLOCK_SIZE]) {
+        // makes changes here to try out from the servers list, and retry based on the status
+        // if(reply.status == wifs::ReadRes_Status_RETRY) retry;
         ClientContext context;
         ReadReq request;
         ReadRes reply;
@@ -42,6 +44,8 @@ class WifsClient {
     }
 
     int wifs_WRITE(int address, char buf[BLOCK_SIZE]) {
+        // makes changes here to try out from the servers list, and retry based on the status
+        // if(reply.status == wifs::WriteRes_Status_RETRY) retry;
         ClientContext context;
         WriteReq request;
         WriteRes reply;
