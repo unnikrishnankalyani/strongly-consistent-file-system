@@ -46,7 +46,7 @@ class Server():
         #self.server.communicate()
 
 class Client(threading.Thread):
-    def __init__(self, address):
+    def __init__(self):
         threading.Thread.__init__(self)
         self.libclient = CDLL(os.path.abspath("../cmake/build/libclient.so"))
         # self.ip = c_char_p(address.encode('utf-8'))
