@@ -25,14 +25,18 @@ void assign_primary() {
 void switch_primary(int index) {
     primary_index = 1 - index;  // switches between 1 and 0
     primary_server = servers[primary_index];
+    std::cout<<"primary switched to "<<primary_server<<"\n";
 }
 
 int do_read(int address, char* buf) {
+    static int rand_index = 0;
+    rand_index++;
+    
     if (primary_server == "") assign_primary();
     std::cout << "Current PRIMARY: " << primary_server << std::endl;
 
-    read_index = single_server ? primary_index : rand() % 2;
-
+    read_index = single_server ? primary_index : rand_index % 2;
+    std::cout<<"reading from "<<read_index<<"\n";
     int rc = options.wifsclient[read_index]->wifs_READ(address, buf);
     std::cout << "Read Return code: " << rc << std::endl;
     // call goes through, just return
