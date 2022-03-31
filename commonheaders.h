@@ -29,7 +29,10 @@ std::string ip_server_wifs_2 = "localhost:50055";
 std::string primary_server = "";
 std::string servers [2] = {ip_server_wifs_1, ip_server_wifs_2};
 
-int server_index = 0;
+int read_index = 0;
+int primary_index = 0;
+
+int single_server = 0;
 
 std::string getServerDir(int machine_id){
         return "/users/oahmed4/.server" +  std::to_string(machine_id);

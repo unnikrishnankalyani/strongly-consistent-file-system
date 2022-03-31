@@ -82,6 +82,8 @@ sem_t sem_concensus;
 int pending_write_address = -1;
 bool other_node_syncing = false;
 
+bool other_node_down = false;
+
 std::unique_ptr<PrimaryBackup::Stub> client_stub_;
 
 void init_connection_with_other_node() {
@@ -162,9 +164,13 @@ int append_write_request(const WriteReq* request) {
     sem_post(&mutex_pending_grpc_write);
 
     if (remote_write(write_request) == -1) {
+        other_node_down = true;
         std::cout << "appending to failure log\n";
         log_queue.push(write_request);
         sem_post(&sem_log_queue);
+    }
+    else{
+        other_node_down = false;
     }
     sem_post(&mutex_queue);
 
@@ -178,6 +184,7 @@ int append_write_request(const WriteReq* request) {
 class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
     Status Ping(ServerContext* context, const HeartBeat* request, HeartBeat* reply) {
         reply->set_state(server_state == "INIT" ? primarybackup::HeartBeat_State_INIT : primarybackup::HeartBeat_State_READY);
+        other_node_down = false;
         return Status::OK;
     }
 
@@ -258,7 +265,6 @@ class WifsServiceImplementation final : public WIFS::Service {
     Status wifs_WRITE(ServerContext* context, const WriteReq* request,
                       WriteRes* reply) override {
         // check if this is primary or not, and then only do the write.
-        // make this change after merging with Adil's branch.
         sem_wait(&mutex_election);
         if (election_state != "PRIMARY"){
             reply->set_status(wifs::WriteRes_Status_RETRY); //retry with the primary IP provided in the next line
@@ -271,7 +277,12 @@ class WifsServiceImplementation final : public WIFS::Service {
 
         reply->set_status(wifs::WriteRes_Status_FAIL);
         if (append_write_request(request) == -1) return Status::OK;
-        reply->set_status(wifs::WriteRes_Status_PASS);
+        if (other_node_down){
+            reply->set_status(wifs::WriteRes_Status_SOLO);
+        }
+        else{
+            reply->set_status(wifs::WriteRes_Status_PASS);
+        }
 
         
 
@@ -320,7 +331,12 @@ class WifsServiceImplementation final : public WIFS::Service {
         std::string buffer(BLOCK_SIZE, ' ');
         std::ifstream file_inp(path);
         buffer.assign((std::istreambuf_iterator<char>(file_inp)), std::istreambuf_iterator<char>());
-        reply->set_status(wifs::ReadRes_Status_PASS);
+        if (other_node_down){
+            reply->set_status(wifs::ReadRes_Status_SOLO);
+        }
+        else{
+            reply->set_status(wifs::ReadRes_Status_PASS);
+        }
         reply->set_buf(buffer);
         return Status::OK;
     }

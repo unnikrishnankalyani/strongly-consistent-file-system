@@ -4,54 +4,91 @@
 #include <grpcpp/grpcpp.h>
 
 
-static struct Options {
-    WifsClient* wifsclient;
+static struct options {
+    WifsClient* wifsclient[2];
     int show_help;
-    std::string primary = "";
 } options;
 
 extern "C" {
 
-int init(std::string ip_address){
-    options.wifsclient = new WifsClient(grpc::CreateChannel(ip_address, grpc::InsecureChannelCredentials()));
+int init(){
+    options.wifsclient[0] = new WifsClient(grpc::CreateChannel(ip_server_wifs_1, grpc::InsecureChannelCredentials()));
+    options.wifsclient[1] = new WifsClient(grpc::CreateChannel(ip_server_wifs_2, grpc::InsecureChannelCredentials()));
 }
 
 int do_read(int address, char* buf) {
     std::cout << "Current PRIMARY: " <<primary_server <<std::endl;
     if (primary_server == ""){
-        primary_server = servers[server_index];
-        init(primary_server);
+        primary_server = servers[primary_index];
+        init();
+        std::cout << "Changed PRIMARY: " <<primary_server <<std::endl;
     }
-    int rc = options.wifsclient->wifs_READ(address, buf);
-    if (rc != 0){
-        primary_server = servers[1 - server_index]; //switch to other server if rc < 0 (gRPC failure) or rc > 0 (primary IP changed)
-        init(primary_server);
-        std::cout << "Current PRIMARY: " <<primary_server <<std::endl;
-        if (rc<0){ //repeat operation only for failure, not for primary change
-            do_read(address,buf);
-        }
+    if (!single_server)
+        read_index = rand() % 2;
+    else
+        read_index = primary_index;
+    int rc = options.wifsclient[read_index]->wifs_READ(address, buf);
+    std::cout << "Read Return code: " << rc <<std::endl;
+    if (rc < 0){ //call failed
+        primary_index = 1 - read_index; //switches between 1 and 0
+        primary_server = servers[primary_index];
+        single_server = 1;
+        std::cout << "Read Call FAILED. Trying other node" <<primary_server <<std::endl;
+        do_read(address,buf); //repeat operation
+    }
+    else if (rc == 1){ //primary has changed
+        primary_index = 1 - read_index; //switches between 1 and 0
+        primary_server = servers[primary_index];
+        single_server = 0;
+        std::cout << "Changed PRIMARY: " <<primary_server <<std::endl;
+    }
+    else if (rc == 2){ //current server is running in solo mode
+        primary_index = read_index;
+        primary_server = servers[primary_index];
+        single_server = 1;
+        std::cout << "Server running in SOLO mode. No more read distribution" <<primary_server <<std::endl;
+    }
+    else{
+        single_server = 0;
     }
     return rc;    
 }
-	
 
 int do_write(int address, char* buf) {
     if (primary_server == ""){
-        primary_server = servers[server_index];
-        init(primary_server);
+        primary_server = servers[primary_index];
+        init();
         std::cout << "Changed PRIMARY: " <<primary_server <<std::endl;
     }
-    int rc =  options.wifsclient->wifs_WRITE(address, buf);
+    int rc =  options.wifsclient[primary_index]->wifs_WRITE(address, buf);
     std::cout << "Write Return code: " << rc <<std::endl;
-    if (rc != 0){
-        server_index = 1 - server_index; //switches between 1 and 0
-        primary_server = servers[server_index]; //switch to other server if rc < 0 (gRPC failure) or rc > 0 (primary IP changed)
-        init(primary_server);
-        std::cout << "Changed PRIMARY: " <<primary_server <<std::endl; 
+    int count = 0;
+    if (rc <0 ){ //call failed
+        if (count == 4) return rc;
+        primary_index = 1 - primary_index; //switches between 1 and 0
+        primary_server = servers[primary_index];
+        single_server = 1;
+        std::cout << "Write Call FAILED. Trying other node" <<primary_server <<std::endl;
+        count++;
+        do_write(address,buf); //repeat operation
+    }
+    else if (rc == 1){ //primary has changed
+        primary_index = 1 - primary_index; //switches between 1 and 0
+        primary_server = servers[primary_index];
+        single_server = 0;
+        std::cout << "Changed PRIMARY: " <<primary_server <<std::endl;
         std::cout << "Repeating WRITE" <<std::endl;
-        do_write(address,buf);//repeat operation both for failure, and for primary change
+        do_write(address,buf);
+    }
+    else if (rc == 2){ //server running solo
+        single_server = 1;
+        std::cout << "Server running in SOLO mode. No more read distribution" <<primary_server <<std::endl;
+    }
+    else {
+        single_server = 0;
     }
     return rc;
+
 }
 
 }

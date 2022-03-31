@@ -41,6 +41,9 @@ class WifsClient {
         Status status = stub_->wifs_READ(&context, request, &reply);
         strncpy(buf, reply.buf().c_str(), BLOCK_SIZE);
         if (status.ok()){
+            if(reply.status() == wifs::ReadRes_Status_SOLO){
+                return 2;
+            }
             if (reply.primary_ip() == primary_server){
                 return 0;
             }
@@ -62,6 +65,9 @@ class WifsClient {
         if (status.ok()){
             if (reply.status() == wifs::WriteRes_Status_RETRY){
                 return 1;
+            }
+            else if(reply.status() == wifs::WriteRes_Status_SOLO){
+                return 2;
             }
             else
                 return 0;

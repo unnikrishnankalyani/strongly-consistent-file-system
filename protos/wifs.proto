@@ -31,6 +31,9 @@ message WriteRes {
 
     // retry with the given server address
     RETRY = 2;
+    
+    //current server running alone with no backup
+    SOLO = 3;
   }
   Status status = 1;
   
@@ -54,6 +57,9 @@ message ReadRes {
 
     // retry with the given server address
     RETRY = 2;
+
+    //current server running alone with no backup
+    SOLO = 3;
   }
   Status status = 1;
 
