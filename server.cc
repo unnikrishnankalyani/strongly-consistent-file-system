@@ -35,7 +35,6 @@ using grpc::Channel;
 using grpc::ClientContext;
 using grpc::ClientReader;
 
-using wifs::HeartBeat;
 using wifs::ReadReq;
 using wifs::ReadRes;
 using wifs::WIFS;
@@ -44,8 +43,7 @@ using wifs::WriteRes;
 using wifs::ClientInitReq;
 using wifs::ClientInitRes;
 
-
-using primarybackup::HeartBeatSync;
+using primarybackup::HeartBeat;
 using primarybackup::PrimaryBackup;
 using primarybackup::WriteRequest;
 using primarybackup::WriteResponse;
@@ -175,6 +173,11 @@ int append_write_request(const WriteReq* request) {
 }
 
 class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
+    Status Ping(ServerContext* context, const HeartBeat* request, HeartBeat* reply) {
+        reply->set_state(server_state == "INIT" ? primarybackup::HeartBeat_State_INIT : primarybackup::HeartBeat_State_READY);
+        return Status::OK;
+    }
+
     Status Write(ServerContext* context, const WriteRequest* request, WriteResponse* reply) {
         std::promise<int> promise_obj;
         std::future<int> future_obj = promise_obj.get_future();
@@ -191,7 +194,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
         return Status::OK;
     }
 
-    Status Sync(ServerContext* context, const HeartBeatSync* request, ServerWriter<WriteRequest>* writer) {
+    Status Sync(ServerContext* context, const HeartBeat* request, ServerWriter<WriteRequest>* writer) {
         int pending_writes = 0;
         sem_getvalue(&sem_log_queue, &pending_writes);
         if (pending_writes) other_node_syncing = true;
@@ -206,10 +209,10 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
         return Status::OK;
     }
 
-    Status CheckSync(ServerContext* context, const HeartBeatSync* request, HeartBeatSync* reply) {
+    Status CheckSync(ServerContext* context, const HeartBeat* request, HeartBeat* reply) {
         int pending_writes = 0;
         sem_getvalue(&sem_log_queue, &pending_writes);
-        reply->set_state(pending_writes ? primarybackup::HeartBeatSync_State_INIT : primarybackup::HeartBeatSync_State_READY);
+        reply->set_state(pending_writes ? primarybackup::HeartBeat_State_INIT : primarybackup::HeartBeat_State_READY);
         if (!pending_writes) other_node_syncing = false;
         return Status::OK;
     }
@@ -248,10 +251,6 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
 };
 
 class WifsServiceImplementation final : public WIFS::Service {
-    Status Ping(ServerContext* context, const HeartBeat* request, HeartBeat* reply) {
-        reply->set_state(server_state == "INIT" ? wifs::HeartBeat_State_INIT : wifs::HeartBeat_State_READY);
-        return Status::OK;
-    }
 
     Status wifs_WRITE(ServerContext* context, const WriteReq* request,
                       WriteRes* reply) override {
@@ -306,7 +305,7 @@ class WifsServiceImplementation final : public WIFS::Service {
     }
 };
 
-void run_wifs_server(int server_id) {
+void run_wifs_server() {
     std::string node_address;
     if (server_id == 1) {
         node_address = ip_server_wifs_1;
@@ -353,10 +352,7 @@ void concensus(){
     ClientContext context;
     InitReq request;
     InitRes reply;
-    // 1. Sleep to wait for an incoming heartbeat
-    sleep(1);
-    // 2. If heartbeat had come during the timeout, election_state would be updated
-    // 3. Election state is not updated, so no heartbeat has come
+    //Start elections if PRIMARY (other server) has no heartbeat or during INIT.
     if (election_state == "INIT" or election_state == "CANDIDATE"){
         std::cout << "No heartbeat received. Server is a candidate" <<std::endl;
         election_state = "CANDIDATE";
@@ -400,8 +396,30 @@ void concensus(){
     sem_post(&sem_concensus);
 }
 
+void check_heartbeat() {
+	std::cout << "Heartbeats" <<std::endl;
+    HeartBeat request;
+    while (true) {
+        if(election_state == "BACKUP"){
+            HeartBeat reply;
+            ClientContext context;
+            Status status = client_stub_->Ping(&context, request, &reply);
+            if(!status.ok() || reply.state() != primarybackup::HeartBeat_State_READY){
+                std::cout << "No heartbeat on Primary, Start elections" << std::endl;
+                // Try to be Primary
+                election_state = "CANDIDATE";
+                concensus();
+            }
+            else {
+                std::cout << "Primary alive " << std::endl;
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(HEARTBEAT_TIMER));  
+    }
+}
+
 void update_state_to_latest() {
-    HeartBeatSync request;
+    HeartBeat request;
     ClientContext context;
     std::unique_ptr<ClientReader<WriteRequest> > reader(client_stub_->Sync(&context, request));
     WriteRequest reply;
@@ -429,10 +447,10 @@ void update_state_to_latest() {
         std::cout << "was able to contant other node\n";
 
     // now check if there are any pending log entries that the other node received when we were busy doing the above sync.
-    HeartBeatSync pending_writes;
+    HeartBeat pending_writes;
     ClientContext new_context;
     client_stub_->CheckSync(&new_context, request, &pending_writes);
-    if (!status.ok() || pending_writes.state() == primarybackup::HeartBeatSync_State_READY) {
+    if (!status.ok() || pending_writes.state() == primarybackup::HeartBeat_State_READY) {
         // implies that the other node crashed in between when status not okay
         server_state = "READY";
         return;
@@ -477,14 +495,14 @@ int main(int argc, char** argv) {
     std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server, server_id);
+    std::thread hb_thread(check_heartbeat);
     concensus();
     //Create server path if it doesn't exist
     DIR* dir = opendir(getServerDir(server_id).c_str());
     if (ENOENT == errno) {
         mkdir(getServerDir(server_id).c_str(), 0777);
     }
-    run_wifs_server(server_id);
-
+    run_wifs_server();
     // internal_server.join();
     // writer_thread.join();
     return 0;
