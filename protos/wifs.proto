@@ -5,21 +5,9 @@ option java_package = "ex.grpc";
 package wifs;
 
 service WIFS {
-  rpc Ping(HeartBeat) returns (HeartBeat) {}
   rpc wifs_READ(ReadReq) returns (ReadRes){}
   rpc wifs_WRITE(WriteReq) returns (WriteRes){}
   rpc wifs_INIT(ClientInitReq) returns (ClientInitRes){}
-}
-
-message HeartBeat {
-    enum State {
-        // can be used when doing the catch up work after failure
-        INIT = 0;
-
-        // when in normal operation
-        READY = 1;
-    }
-    State state = 1;
 }
 
 message ClientInitReq {
@@ -36,8 +24,24 @@ message WriteReq {
 }
 
 message WriteRes {
-  int32 status = 1;
+  enum Status {
+    FAIL = 0;
+
+    PASS = 1;
+
+    // retry with the given server address
+    RETRY = 2;
+    
+    //current server running alone with no backup
+    SOLO = 3;
+  }
+  Status status = 1;
+  
   bytes buf = 2;
+
+  bytes node_ip = 3;
+
+  bytes primary_ip = 4;
 }
 
 message ReadReq {
@@ -46,6 +50,22 @@ message ReadReq {
 }
 
 message ReadRes {
-  int32 status = 1;
+    enum Status {
+    FAIL = 0;
+
+    PASS = 1;
+
+    // retry with the given server address
+    RETRY = 2;
+
+    //current server running alone with no backup
+    SOLO = 3;
+  }
+  Status status = 1;
+
   bytes buf = 2;
+
+  bytes node_ip = 3;
+
+  bytes primary_ip = 4;
 }

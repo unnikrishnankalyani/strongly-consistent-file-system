@@ -2,6 +2,7 @@ from ctypes import *
 import os
 from tester import *
 import time
+
 # Test 1: Write 4096 bytes to an address and read the bytes
 
 #The helper functions defined in tester.py convert the python objects to c objects that can be used for the functions. 
@@ -32,5 +33,5 @@ print(client1.read_buf)
 
 #Kill Servers. Move this step around to simulate failures. Use terminate for graceful shutdown and kill for failure
 
-primary.server.kill()
 secondary.server.kill()
+

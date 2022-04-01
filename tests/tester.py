@@ -48,15 +48,9 @@ class Server():
             str(self.server_id)], shell=False, close_fds=True)#, stdout=DEVNULL, stderr=STDOUT)
         #self.server.communicate()
 
-class Client(threading.Thread):
+class Client():
     def __init__(self):
-        self.stdout = None
-        self.stderr = None
-        threading.Thread.__init__(self)
-
         self.libclient = CDLL(os.path.abspath("../cmake/build/libclient.so"))
-        # self.ip = c_char_p(address.encode('utf-8'))
-        self.libclient.init()
 
     def read(self, address):
         self.address = get_offset(address)
@@ -67,8 +61,7 @@ class Client(threading.Thread):
     def write(self, address, buffer):
         address = get_offset(address)
         write_buf = get_write_buffer(buffer)
-        self.libclient.do_write(address, write_buf)
-    
+        self.libclient.do_write(address, write_buf)    
 
     def init(self):
         self.libclient.init()
@@ -78,4 +71,5 @@ def get_random_4KB():
     letters = string.ascii_uppercase + string.ascii_lowercase + string.ascii_letters + string.digits + string.punctuation
     temp = ''.join(random.choice(letters) for i in range(4096)) 
     return(temp)
+
 
