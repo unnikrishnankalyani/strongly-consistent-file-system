@@ -387,6 +387,7 @@ void consensus() {
     // implies that the local election state is either INIT or CANDIDATE
     std::cout << "No heartbeat received. Server is a candidate" << std::endl;
     election_state = "CANDIDATE";
+    init_connection_with_other_node();
     request.set_role(primarybackup::InitReq_Role_LEADER);
     Status status = client_stub_->Init(&context, request, &reply);
     // other server not functioning.
@@ -399,9 +400,10 @@ void consensus() {
     std::cout << "Status is OK" << std::endl;
     if (reply.status() == 0) {
         std::cout << "Both servers are candidates simultaneously! Retrying Election" << std::endl;
-        release_consensus_lock_and_sem();
+        election_state = "INIT";
+	release_consensus_lock_and_sem();
         int randTime = 10000 + rand() % 100000;
-        usleep(randTime);
+	usleep(randTime);
         return consensus();
     }
 

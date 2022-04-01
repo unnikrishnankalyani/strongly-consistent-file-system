@@ -25,7 +25,7 @@ void assign_primary() {
 void switch_primary(int index) {
     primary_index = 1 - index;  // switches between 1 and 0
     primary_server = servers[primary_index];
-    std::cout<<"primary switched to "<<primary_server<<"\n";
+    //std::cout<<"primary switched to "<<primary_server<<"\n";
 }
 
 int do_read(int address, char* buf) {
@@ -89,14 +89,14 @@ int do_write(int address, char* buf) {
     if (primary_server == "") assign_primary();
 
     int rc = options.wifsclient[primary_index]->wifs_WRITE(address, buf);
-    std::cout << "Write Return code: " << rc << std::endl;
+    //std::cout << "Write Return code: " << rc << std::endl;
     // call goes through, just return
     if (!rc) return 0;
 
     if (rc < 0) {  // call failed
         switch_primary(primary_index);
         single_server = 1;
-        std::cout << "Write Call FAILED. Trying other node" << primary_server << std::endl;
+        //std::cout << "Write Call FAILED. Trying other node" << primary_server << std::endl;
         return do_write(address, buf);  // repeat operation
     }
 
