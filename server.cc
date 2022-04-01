@@ -88,7 +88,6 @@ std::unique_ptr<PrimaryBackup::Stub> client_stub_;
 
 void init_connection_with_other_node() {
     client_stub_ = PrimaryBackup::NewStub(grpc::CreateChannel(other_node_address, grpc::InsecureChannelCredentials()));
-std::cout << "client_stub_ set" <<std::endl;
 }
 
 class Node {
@@ -392,7 +391,6 @@ void consensus() {
     request.set_role(primarybackup::InitReq_Role_LEADER);
     Status status = client_stub_->Init(&context, request, &reply);
     // other server not functioning.
-    std::cout << "ok, reply.status " << status.ok() << " " << reply.status() << std::endl;
     if (!status.ok()) {
         election_state = "PRIMARY";
         std::cout << "This server is a primary!" << std::endl;
@@ -405,7 +403,6 @@ void consensus() {
         election_state = "INIT";
 	release_consensus_lock_and_sem();
         int randTime = 10000 + rand() % 100000;
-        std::cout << "randTime: "<< randTime << std::endl;
 	usleep(randTime);
         return consensus();
     }
