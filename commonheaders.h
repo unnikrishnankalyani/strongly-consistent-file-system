@@ -14,20 +14,30 @@
 
 #include <iostream>
 
+
+
+#define HEARTBEAT_TIMER 1000
+
+
+
 // fix this
 std::string ip_master = "localhost:50051";
 std::string ip_server_pb_1 = "localhost:50052";
 std::string ip_server_pb_2 = "localhost:50053";
 std::string ip_server_wifs_1 = "localhost:50054";
 std::string ip_server_wifs_2 = "localhost:50055";
-
+std::string primary_server = "";
 std::string servers [2] = {ip_server_wifs_1, ip_server_wifs_2};
+
+int read_index = 0;
+int primary_index = 0;
+
+int single_server = 0;
 
 std::string getServerDir(int machine_id){
         return "/users/oahmed4/.server" +  std::to_string(machine_id);
 }
 
 std::string getServerPath(std::string address, int machine_id) {
-    return getServerDir(machine_id) + "/file_" + address;
+    return getServerDir(machine_id) + "/bs" ;//"/file_" + address;
 }
-

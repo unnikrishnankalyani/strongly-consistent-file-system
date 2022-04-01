@@ -42,7 +42,7 @@ add_custom_command(
         --cpp_out "${CMAKE_CURRENT_BINARY_DIR}"
         -I "${wifs_proto_path}"
         --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
-        "${wifs_proto}"
+	"${wifs_proto}"
       DEPENDS "${wifs_proto}")
 
 set(primarybackup_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/primarybackup.pb.cc")

@@ -1,6 +1,8 @@
 from ctypes import *
 import os
 from tester import *
+import time
+
 # Test 1: Write 4096 bytes to an address and read the bytes
 
 #The helper functions defined in tester.py convert the python objects to c objects that can be used for the functions. 
@@ -14,9 +16,10 @@ primary.run_server()
 secondary = Server(2)
 secondary.run_server()
 
+time.sleep(2)
 #Client Steps
 #Step 1: Init the client with the IP to use for primary
-client1 = Client(ip_server_wifs_1)
+client1 = Client()
 
 #Step 2: Perform the write
 client1.write(0, "f" * 4096)
@@ -32,6 +35,3 @@ print(client1.read_buf)
 
 primary.server.kill()
 secondary.server.kill()
-
-
-
