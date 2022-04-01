@@ -76,8 +76,8 @@ sem_t mutex_pending_grpc_write;
 // used to ensure node doesn't respond to candidate request while it is a candidate itself
 sem_t mutex_election;
 
-// ensure that concensus happens only after the PB interfaces are up
-sem_t sem_concensus;
+// ensure that consensus happens only after the PB interfaces are up
+sem_t sem_consensus;
 
 int pending_write_address = -1;
 bool other_node_syncing = false;
@@ -354,23 +354,23 @@ void run_pb_server() {
     pbServer.AddListeningPort(this_node_address, grpc::InsecureServerCredentials());
     pbServer.RegisterService(&service);
     std::unique_ptr<Server> server(pbServer.BuildAndStart());
-    sem_post(&sem_concensus);
+    sem_post(&sem_consensus);
     std::cout << "PB Server listening on port: " << this_node_address << std::endl;
 
     server->Wait();
 }
 
 void acquire_consensus_lock_and_sem() {
-    sem_wait(&sem_concensus);
+    sem_wait(&sem_consensus);
     sem_wait(&mutex_election);
 }
 
 void release_consensus_lock_and_sem() {
     sem_post(&mutex_election);
-    sem_post(&sem_concensus);
+    sem_post(&sem_consensus);
 }
 
-void concensus() {
+void consensus() {
     std::cout << "Election begins. Waiting for mutex release" << std::endl;
     acquire_consensus_lock_and_sem();
 
@@ -401,7 +401,7 @@ void concensus() {
         release_consensus_lock_and_sem();
         int randTime = 10000 + rand() % 100000;
         usleep(randTime);
-        return concensus();
+        return consensus();
     }
 
     if (reply.status() == 1) {
@@ -439,7 +439,7 @@ void check_heartbeat() {
 
             // increment some semaphore?? not needed I guess. coz that semaphore will be 1 when not in consensus.
             // why did we think of incrementing it the other day??
-            concensus();
+            consensus();
             continue;
         }
 
@@ -514,7 +514,7 @@ int main(int argc, char** argv) {
     sem_init(&mutex_queue, 0, 1);
     sem_init(&mutex_log_queue, 0, 1);
     sem_init(&mutex_election, 0, 1);
-    sem_init(&sem_concensus, 0, 0);
+    sem_init(&sem_consensus, 0, 0);
     sem_init(&mutex_pending_grpc_write, 0, 1);
 
     if (argc < 2) {
@@ -536,7 +536,7 @@ int main(int argc, char** argv) {
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server);
     std::thread hb_thread(check_heartbeat);
-    concensus();
+    consensus();
     std::cout << "consensus returned\n";
 
     // Create server path if it doesn't exist
