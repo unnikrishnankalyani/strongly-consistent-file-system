@@ -354,8 +354,9 @@ void run_pb_server() {
     pbServer.AddListeningPort(this_node_address, grpc::InsecureServerCredentials());
     pbServer.RegisterService(&service);
     std::unique_ptr<Server> server(pbServer.BuildAndStart());
-    sem_post(&sem_consensus);
+    
     std::cout << "PB Server listening on port: " << this_node_address << std::endl;
+    sem_post(&sem_consensus);
 
     server->Wait();
 }
@@ -373,7 +374,7 @@ void release_consensus_lock_and_sem() {
 void consensus() {
     std::cout << "Election begins. Waiting for mutex release" << std::endl;
     acquire_consensus_lock_and_sem();
-
+    std::cout << "Start Election." << std::endl;
     ClientContext context;
     InitReq request;
     InitRes reply;
