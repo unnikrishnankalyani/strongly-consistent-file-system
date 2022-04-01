@@ -36,7 +36,7 @@ int do_read(int address, char* buf) {
     std::cout << "Current PRIMARY: " << primary_server << std::endl;
 
     read_index = single_server ? primary_index : rand_index % 2;
-    std::cout<<"reading from "<<read_index<<"\n";
+    std::cout<<"reading from "<<servers[read_index]<<std::endl;
     int rc = options.wifsclient[read_index]->wifs_READ(address, buf);
     std::cout << "Read Return code: " << rc << std::endl;
     // call goes through, just return
