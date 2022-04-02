@@ -69,17 +69,6 @@ class WifsClient {
         return 0;
     }
 
-    // function not being used??
-    int wifs_INIT(const char buf[MAX_PATH_LENGTH]) {
-        ClientContext context;
-        ClientInitReq request;
-        ClientInitRes reply;
-        Status status = stub_->wifs_INIT(&context, request, &reply);
-        buf = reply.primary_ip().c_str();
-        std::cout << "Printing from WifsClient: IP address: " << buf << std::endl;
-        return status.ok() ? 0 : -1;
-    }
-
    private:
     std::unique_ptr<WIFS::Stub> stub_;
 };

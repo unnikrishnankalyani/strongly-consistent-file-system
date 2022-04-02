@@ -32,6 +32,6 @@ print(client1.read_buf)
 
 
 #Kill Servers. Move this step around to simulate failures. Use terminate for graceful shutdown and kill for failure
-
+time.sleep(10);
+primary.server.kill()
 secondary.server.kill()
-

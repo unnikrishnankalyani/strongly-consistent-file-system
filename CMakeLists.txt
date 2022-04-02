@@ -104,16 +104,6 @@ target_link_libraries(server
   ${_GRPC_GRPCPP}
   ${_PROTOBUF_LIBPROTOBUF})
 
-# master
-add_executable(master "master.cc")
-target_link_libraries(master
-  ${PTHREAD_LIB}
-  wifs_grpc_proto
-  primarybackup_grpc_proto
-  ${_REFLECTION}
-  ${_GRPC_GRPCPP}
-  ${_PROTOBUF_LIBPROTOBUF})
-
 # client manual, easy for manual testing. spin up server and then client
 add_executable(client_manual "client_manual.cc")
 target_link_libraries(client_manual

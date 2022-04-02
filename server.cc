@@ -300,7 +300,7 @@ class WifsServiceImplementation final : public WIFS::Service {
                      ReadRes* reply) override {
         bool is_grpc_write_pending = false;
         sem_wait(&mutex_pending_grpc_write);
-        is_grpc_write_pending = pending_write_address == request->address();
+        is_grpc_write_pending = (pending_write_address >= max(request->address() - BLOCK_SIZE, 0) && pending_write_address < request->address() + BLOCK_SIZE);
         sem_post(&mutex_pending_grpc_write);
 
         std::string local_election_state = get_election_state_value();
@@ -354,8 +354,9 @@ void run_pb_server() {
     pbServer.AddListeningPort(this_node_address, grpc::InsecureServerCredentials());
     pbServer.RegisterService(&service);
     std::unique_ptr<Server> server(pbServer.BuildAndStart());
-    sem_post(&sem_consensus);
+    
     std::cout << "PB Server listening on port: " << this_node_address << std::endl;
+    sem_post(&sem_consensus);
 
     server->Wait();
 }
@@ -373,7 +374,7 @@ void release_consensus_lock_and_sem() {
 void consensus() {
     std::cout << "Election begins. Waiting for mutex release" << std::endl;
     acquire_consensus_lock_and_sem();
-
+    std::cout << "Start Election." << std::endl;
     ClientContext context;
     InitReq request;
     InitRes reply;
@@ -386,6 +387,7 @@ void consensus() {
     // implies that the local election state is either INIT or CANDIDATE
     std::cout << "No heartbeat received. Server is a candidate" << std::endl;
     election_state = "CANDIDATE";
+    init_connection_with_other_node();
     request.set_role(primarybackup::InitReq_Role_LEADER);
     Status status = client_stub_->Init(&context, request, &reply);
     // other server not functioning.
@@ -398,9 +400,10 @@ void consensus() {
     std::cout << "Status is OK" << std::endl;
     if (reply.status() == 0) {
         std::cout << "Both servers are candidates simultaneously! Retrying Election" << std::endl;
-        release_consensus_lock_and_sem();
+        election_state = "INIT";
+	release_consensus_lock_and_sem();
         int randTime = 10000 + rand() % 100000;
-        usleep(randTime);
+	usleep(randTime);
         return consensus();
     }
 
