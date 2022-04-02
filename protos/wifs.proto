@@ -7,15 +7,6 @@ package wifs;
 service WIFS {
   rpc wifs_READ(ReadReq) returns (ReadRes){}
   rpc wifs_WRITE(WriteReq) returns (WriteRes){}
-  rpc wifs_INIT(ClientInitReq) returns (ClientInitRes){}
-}
-
-message ClientInitReq {
-
-}
-
-message ClientInitRes{
-  string primary_ip = 1;
 }
 
 message WriteReq {

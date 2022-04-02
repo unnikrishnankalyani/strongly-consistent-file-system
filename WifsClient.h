@@ -14,8 +14,6 @@ using grpc::ClientReader;
 using grpc::Status;
 using grpc::StatusCode;
 
-using wifs::ClientInitReq;
-using wifs::ClientInitRes;
 using wifs::ReadReq;
 using wifs::ReadRes;
 using wifs::WIFS;

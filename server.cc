@@ -19,6 +19,7 @@
 #include <iostream>
 #include <streambuf>
 #include <string>
+#include <algorithm>
 
 #include "commonheaders.h"
 #include "primarybackup.grpc.pb.h"
@@ -35,8 +36,6 @@ using grpc::Channel;
 using grpc::ClientContext;
 using grpc::ClientReader;
 
-using wifs::ClientInitReq;
-using wifs::ClientInitRes;
 using wifs::ReadReq;
 using wifs::ReadRes;
 using wifs::WIFS;
@@ -289,18 +288,11 @@ class WifsServiceImplementation final : public WIFS::Service {
         return Status::OK;
     }
 
-    Status wifs_INIT(ServerContext* context, const ClientInitReq* request,
-                     ClientInitRes* reply) override {
-        std::string local_election_state = get_election_state_value();
-        reply->set_primary_ip(local_election_state == "PRIMARY" ? cur_node_wifs_address : other_node_wifs_address);
-        return Status::OK;
-    }
-
     Status wifs_READ(ServerContext* context, const ReadReq* request,
                      ReadRes* reply) override {
         bool is_grpc_write_pending = false;
         sem_wait(&mutex_pending_grpc_write);
-        is_grpc_write_pending = (pending_write_address >= max(request->address() - BLOCK_SIZE, 0) && pending_write_address < request->address() + BLOCK_SIZE);
+        is_grpc_write_pending = (pending_write_address >= std::max(request->address() - BLOCK_SIZE, 0) && pending_write_address < request->address() + BLOCK_SIZE);
         sem_post(&mutex_pending_grpc_write);
 
         std::string local_election_state = get_election_state_value();
