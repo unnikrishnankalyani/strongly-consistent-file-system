@@ -300,7 +300,7 @@ class WifsServiceImplementation final : public WIFS::Service {
                      ReadRes* reply) override {
         bool is_grpc_write_pending = false;
         sem_wait(&mutex_pending_grpc_write);
-        is_grpc_write_pending = pending_write_address == request->address();
+        is_grpc_write_pending = (pending_write_address >= max(request->address() - BLOCK_SIZE, 0) && pending_write_address < request->address() + BLOCK_SIZE);
         sem_post(&mutex_pending_grpc_write);
 
         std::string local_election_state = get_election_state_value();
