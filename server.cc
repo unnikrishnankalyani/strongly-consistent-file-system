@@ -144,6 +144,7 @@ void start_transition_log(const WriteRequest write_request) {
 void local_write(void) {
     while (true) {
         if(crash_before_local_write) while(true);
+        else std::cout<<"NOT treu\n";
         sem_wait(&sem_queue);
         Node* node = write_queue.front();
         write_queue.pop();
@@ -204,7 +205,19 @@ int append_write_request(const WriteReq* request) {
     WriteRequest write_request;
     write_request.set_blk_address(request->address());
     write_request.set_buffer(request->buf());
-
+    switch(request->crash_mode()) {
+        case wifs::WriteReq_Crash_BACKUP_CRASH_BEFORE_WRITE: {
+            write_request.set_crash_mode(primarybackup::WriteRequest_Crash_BACKUP_CRASH_BEFORE_WRITE);
+            break;
+        }
+        case wifs::WriteReq_Crash_BACKUP_CRASH_AFTER_WRITE: {
+            write_request.set_crash_mode(primarybackup::WriteRequest_Crash_BACKUP_CRASH_BEFORE_WRITE);
+            break;
+        }
+        default: {
+            // do nothing
+        }
+    }
     sem_wait(&mutex_pending_grpc_write);
     pending_write_address = request->address();
     sem_post(&mutex_pending_grpc_write);
@@ -241,6 +254,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
     }
 
     Status Write(ServerContext* context, const WriteRequest* request, WriteResponse* reply) {
+        if(request->crash_mode() == primarybackup::WriteRequest_Crash_BACKUP_CRASH_BEFORE_WRITE) killserver();
         start_transition_log(*request);
         std::promise<int> promise_obj;
         std::future<int> future_obj = promise_obj.get_future();
@@ -254,6 +268,9 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
         sem_post(&sem_queue);
 
         reply->set_status(future_obj.get() == -1 ? primarybackup::WriteResponse_Status_FAIL : primarybackup::WriteResponse_Status_PASS);
+
+        if(request->crash_mode() == primarybackup::WriteRequest_Crash_BACKUP_CRASH_AFTER_WRITE) killserver();
+
         return Status::OK;
     }
 
@@ -339,6 +356,8 @@ class WifsServiceImplementation final : public WIFS::Service {
 
     Status wifs_READ(ServerContext* context, const ReadReq* request,
                      ReadRes* reply) override {
+        if(request->crash_mode() == wifs::ReadReq_Crash_NODE_CRASH_READ) killserver();
+
         bool is_grpc_write_pending = false;
         sem_wait(&mutex_pending_grpc_write);
         is_grpc_write_pending = (pending_write_address >= std::max(request->address() - BLOCK_SIZE, 0) && pending_write_address < request->address() + BLOCK_SIZE);
@@ -575,7 +594,6 @@ int main(int argc, char** argv) {
 
     update_state_to_latest(0);
 
-    std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server);
     std::thread hb_thread(check_heartbeat);
