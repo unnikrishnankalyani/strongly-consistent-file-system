@@ -51,6 +51,25 @@ message WriteRequest {
     int32 blk_address = 1;
 
     bytes buffer = 2;
+
+    enum Crash {
+      NO_CRASH = 0;
+
+      PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE = 1;
+
+      PRIMARY_CRASH_AFTER_LOCAL_WRITE_AFTER_REMOTE = 2;
+
+      PRIMARY_CRASH_BEFORE_LOCAL_WRITE_BEFORE_REMOTE = 3;
+
+      PRIMARY_CRASH_AFTER_LOCAL_WRITE_BEFORE_REMOTE = 4;
+
+      BACKUP_CRASH_BEFORE_WRITE = 5;
+
+      BACKUP_CRASH_AFTER_WRITE = 6;
+
+      NODE_CRASH_READ = 7;
+    }
+    Crash crash_mode = 3;
 }
 
 message WriteResponse {
