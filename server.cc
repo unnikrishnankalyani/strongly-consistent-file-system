@@ -69,7 +69,6 @@ sem_t sem_log_queue;
 
 // used to achieve mutual exclusion during enqueue operation on write queue as well as log queue
 sem_t mutex_queue;
-sem_t mutex_log_queue;
 
 sem_t mutex_pending_grpc_write;
 // used to ensure node doesn't respond to candidate request while it is a candidate itself
@@ -118,14 +117,14 @@ std::string get_election_state_value() {
 
 void start_transition_log(const WriteRequest write_request) {
     sem_wait(&mutex_election);
-    sem_wait(&sem_log_queue);
+    sem_wait(&mutex_queue);
     std::string local_state(election_state);
     if local_state == "BACKUP"{
         std::queue<WriteRequest> empty;
         std::swap(log_queue, empty); 
     }
     log_queue.push(write_request);
-    sem_post(&sem_log_queue);
+    sem_post(&mutex_queue);
     sem_post(&mutex_election);
     return 0;
 }
@@ -522,7 +521,6 @@ int main(int argc, char** argv) {
 
     sem_init(&sem_queue, 0, 0);
     sem_init(&mutex_queue, 0, 1);
-    sem_init(&mutex_log_queue, 0, 1);
     sem_init(&mutex_election, 0, 1);
     sem_init(&sem_consensus, 0, 0);
     sem_init(&mutex_pending_grpc_write, 0, 1);
