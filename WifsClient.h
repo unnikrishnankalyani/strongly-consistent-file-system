@@ -1,6 +1,7 @@
 #include <grpc++/grpc++.h>
 #include <grpc/impl/codegen/status.h>
 #include <grpcpp/impl/codegen/status_code_enum.h>
+#include <csignal>
 
 #include <chrono>
 #include <thread>
@@ -54,7 +55,9 @@ class WifsClient {
         WriteRes reply;
         request.set_address(address);
         request.set_buf(std::string(buf));
+        request.set_crash_mode(wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE);
         Status status = stub_->wifs_WRITE(&context, request, &reply);
+        kill(getpid(), SIGKILL);
         if (!status.ok()) return -1;
 
         if (reply.status() == wifs::WriteRes_Status_RETRY) {
