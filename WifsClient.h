@@ -29,11 +29,12 @@ class WifsClient {
     int interval = 1000;
     int retries = 1;
 
-    int wifs_READ(int address, char buf[BLOCK_SIZE]) {
+    int wifs_READ(int address, char buf[BLOCK_SIZE], Crash crash_mode) {
         ClientContext context;
         ReadReq request;
         ReadRes reply;
         request.set_address(address);
+        request.set_crash_mode(crash_mode);
         Status status = stub_->wifs_READ(&context, request, &reply);
         strncpy(buf, reply.buf().c_str(), BLOCK_SIZE);
         if (!status.ok()) return -1;
@@ -48,12 +49,13 @@ class WifsClient {
         return reply.primary_ip() == primary_server ? 0 : 1;
     }
 
-    int wifs_WRITE(int address, char buf[BLOCK_SIZE]) {
+    int wifs_WRITE(int address, char buf[BLOCK_SIZE], int failure_mode) {
         ClientContext context;
         WriteReq request;
         WriteRes reply;
         request.set_address(address);
         request.set_buf(std::string(buf));
+        request.set_crash_mode(crash_mode);
         Status status = stub_->wifs_WRITE(&context, request, &reply);
         if (!status.ok()) return -1;
 
