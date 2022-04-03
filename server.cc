@@ -19,6 +19,7 @@
 #include <iostream>
 #include <streambuf>
 #include <string>
+#include <algorithm>
 
 #include "commonheaders.h"
 #include "primarybackup.grpc.pb.h"
@@ -35,8 +36,6 @@ using grpc::Channel;
 using grpc::ClientContext;
 using grpc::ClientReader;
 
-using wifs::ClientInitReq;
-using wifs::ClientInitRes;
 using wifs::ReadReq;
 using wifs::ReadRes;
 using wifs::WIFS;
@@ -286,13 +285,6 @@ class WifsServiceImplementation final : public WIFS::Service {
         reply->set_status(wifs::WriteRes_Status_FAIL);
         if (append_write_request(request) == -1) return Status::OK;
         reply->set_status(other_node_down ? wifs::WriteRes_Status_SOLO : wifs::WriteRes_Status_PASS);
-        return Status::OK;
-    }
-
-    Status wifs_INIT(ServerContext* context, const ClientInitReq* request,
-                     ClientInitRes* reply) override {
-        std::string local_election_state = get_election_state_value();
-        reply->set_primary_ip(local_election_state == "PRIMARY" ? cur_node_wifs_address : other_node_wifs_address);
         return Status::OK;
     }
 
