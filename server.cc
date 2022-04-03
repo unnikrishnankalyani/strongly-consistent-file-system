@@ -116,6 +116,20 @@ std::string get_election_state_value() {
     return local_state;
 }
 
+void start_transition_log(const WriteRequest write_request) {
+    sem_wait(&mutex_election);
+    sem_wait(&sem_log_queue);
+    std::string local_state(election_state);
+    if local_state == "BACKUP"{
+        std::queue<WriteRequest> empty;
+        std::swap(log_queue, empty); 
+    }
+    log_queue.push(write_request);
+    sem_post(&sem_log_queue);
+    sem_post(&mutex_election);
+    return 0;
+}
+
 void local_write(void) {
     while (true) {
         sem_wait(&sem_queue);
@@ -200,6 +214,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
     }
 
     Status Write(ServerContext* context, const WriteRequest* request, WriteResponse* reply) {
+        start_transition_log(*request);
         std::promise<int> promise_obj;
         std::future<int> future_obj = promise_obj.get_future();
 
