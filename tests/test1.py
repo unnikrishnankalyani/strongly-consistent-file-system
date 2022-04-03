@@ -10,13 +10,13 @@ import time
 
 #Server steps
 #Step 1. Initialize Primary with Server ID
-primary = Server(1)
-primary.run_server()
-# #Step 2. Initialize backup with Server ID
-secondary = Server(2)
-secondary.run_server()
+# primary = Server(1)
+# primary.run_server()
+# # #Step 2. Initialize backup with Server ID
+# secondary = Server(2)
+# secondary.run_server()
 
-time.sleep(2)
+#time.sleep(2)
 #Client Steps
 #Step 1: Init the client with the IP to use for primary
 client1 = Client()
@@ -32,6 +32,6 @@ print(client1.read_buf)
 
 
 #Kill Servers. Move this step around to simulate failures. Use terminate for graceful shutdown and kill for failure
-time.sleep(10);
-primary.server.kill()
-secondary.server.kill()
+#time.sleep(10);
+#primary.server.kill()
+#secondary.server.kill()

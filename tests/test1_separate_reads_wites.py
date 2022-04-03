@@ -8,12 +8,12 @@ import time
 #Use the same functions for generating ip addresses, write buffers and read buffers
 
 #Server steps
-print("Step 1. Initialize Primary with Server ID")
-primary = Server(1)
-primary.run_server()
-print("Step 2. Initialize backup with Server ID")
-secondary = Server(2)
-secondary.run_server()
+#print("Step 1. Initialize Primary with Server ID")
+# primary = Server(1)
+# primary.run_server()
+# #print("Step 2. Initialize backup with Server ID")
+# secondary = Server(2)
+# secondary.run_server()
 
 time.sleep(2)
 #Client Steps
@@ -21,32 +21,33 @@ time.sleep(2)
 client1 = Client()
 
 
-print("Step 2: Perform the writes")
+#print("Step 2: Perform the writes")
 
-time_writes = [0]*10
-time_reads = [0]*10
+time_writes = [0]*100
+time_reads = [0]*100
 
-for i in range(10):
+for i in range(20):
     client_buf = get_random_4KB()
-    
     # calculating write times.q
     starttime = time.time()
     client1.write(i * 4096, client_buf)
     time_writes[i] = time.time() - starttime
 
+
+for i in range(20):
     # calculating read times.
     starttime = time.time()
     client1.read(i * 4096)
     time_reads[i] = time.time() - starttime
 
     #prints for each iteration
-    print("checksum value is", client1.read_buf == client_buf)    
-    print("Write time taken is ", time_writes[i])
-    print("Read time taken is ", time_reads[i])
+    #print("checksum value is", client1.read_buf == client_buf)    
+    #print("Write time taken is ", time_writes[i])
+    #print("Read time taken is ", time_reads[i])
 
 # print average times.
-print("Separate writes : Average write time", sum(time_writes)/len(time_writes))
-print("Separate reads : Average read time", sum(time_reads)/len(time_reads))
+#print("Separate writes : Average write time", sum(time_writes)/len(time_writes))
+#print("Separate reads : Average read time", sum(time_reads)/len(time_reads))
 
 
 
@@ -54,9 +55,9 @@ print("Separate reads : Average read time", sum(time_reads)/len(time_reads))
 
 
 
-print("Kill Servers. Move this step around to simulate failures. Use terminate for graceful shutdown and kill for failure")
+#print("Kill Servers. Move this step around to simulate failures. Use terminate for graceful shutdown and kill for failure")
 
-primary.server.kill()
-secondary.server.kill()
+#primary.server.kill()
+#secondary.server.kill()
 
 

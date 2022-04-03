@@ -8,16 +8,16 @@ import time
 #Use the same functions for generating ip addresses, write buffers and read buffers
 
 #Server steps
-print("Step 1. Initialize Primary with Server ID")
-primary = Server(1)
-primary.run_server()
-print("Step 2. Initialize backup with Server ID")
-secondary = Server(2)
-secondary.run_server()
+# print("Step 1. Initialize Primary with Server ID")
+# primary = Server(1)
+# primary.run_server()
+# print("Step 2. Initialize backup with Server ID")
+# secondary = Server(2)
+# secondary.run_server()
 
 time.sleep(2)
 #Client Steps
-print("Step 1: Init the client with the IP to use for primary")
+#print("Step 1: Init the client with the IP to use for primary")
 client1 = Client()
 
 
@@ -25,7 +25,7 @@ time_writes = [0]*10
 time_reads = [0]*10
 
 
-print("Step 2: Perform the writes")
+#print("Step 2: Perform the writes")
 
 for i in range(10):
     client_buf1 = get_random_4KB()
@@ -43,7 +43,7 @@ for i in range(10):
 
 
     # Calculate time taken by 1 read with overalapped data.
-    print("\nStep 3: Perform the read 1")
+    #print("\nStep 3: Perform the read 1")
     starttime = time.time()
     client1.read(0 * (4096 * i))
     time_reads[i] = time.time() - starttime
@@ -53,26 +53,26 @@ for i in range(10):
     client_buf_final = client_buf1[ : int(2/4 * 4096)] + client_buf3
     client_buf_final = client_buf1[ : int(3/4 * 4096)] + client_buf4
 
-    print("Step 4: Check result")
-    print("checksum value is",client1.read_buf == client_buf_final[:4096])
-    print("Write time taken is ", time_writes[i])
-    print("Read time taken is ", time_reads[i])
+    #print("Step 4: Check result")
+    #print("checksum value is",client1.read_buf == client_buf_final[:4096])
+    #print("Write time taken is ", time_writes[i])
+    #print("Read time taken is ", time_reads[i])
     #print(client1.read_buf)
     #print("\n")
     #print(client_buf_final[:4096])
 
 # print average times.
-print("Overlapped writes : Average write time", sum(time_writes)/len(time_writes))
-print("Overlapped reads : Average read time", sum(time_reads)/len(time_reads))
+# print("Overlapped writes : Average write time", sum(time_writes)/len(time_writes))
+# print("Overlapped reads : Average read time", sum(time_reads)/len(time_reads))
 
 
 
 
 
-print("Kill Servers. Move this step around to simulate failures. Use terminate for graceful shutdown and kill for failure")
+# print("Kill Servers. Move this step around to simulate failures. Use terminate for graceful shutdown and kill for failure")
 
-primary.server.kill()
-secondary.server.kill()
+# primary.server.kill()
+# secondary.server.kill()
 
 
 
