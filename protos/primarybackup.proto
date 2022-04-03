@@ -66,6 +66,8 @@ message WriteRequest {
       BACKUP_CRASH_BEFORE_WRITE = 5;
 
       BACKUP_CRASH_AFTER_WRITE = 6;
+
+      NODE_CRASH_READ = 7;
     }
     Crash crash_mode = 3;
 }
