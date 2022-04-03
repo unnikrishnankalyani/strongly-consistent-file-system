@@ -120,14 +120,13 @@ void start_transition_log(const WriteRequest write_request) {
     sem_wait(&mutex_election);
     sem_wait(&sem_log_queue);
     std::string local_state(election_state);
-    if local_state == "BACKUP"{
+    if (local_state == "BACKUP"){
         std::queue<WriteRequest> empty;
         std::swap(log_queue, empty); 
     }
     log_queue.push(write_request);
     sem_post(&sem_log_queue);
     sem_post(&mutex_election);
-    return 0;
 }
 
 void local_write(void) {
