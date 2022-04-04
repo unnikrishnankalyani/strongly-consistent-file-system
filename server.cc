@@ -83,9 +83,6 @@ bool other_node_syncing = false;
 
 bool other_node_down = false;
 
-volatile bool crash_before_local_write = false;
-volatile bool crash_after_local_write = false;
-
 std::unique_ptr<PrimaryBackup::Stub> client_stub_;
 
 void init_connection_with_other_node() {
@@ -143,15 +140,13 @@ void start_transition_log(const WriteRequest write_request) {
 
 void local_write(void) {
     while (true) {
-//        if(crash_before_local_write) while(true);
-//        else std::cout<<"NOT treu\n";
         sem_wait(&sem_queue);
         Node* node = write_queue.front();
         write_queue.pop();
 
         const WriteReq* request = node->req;
 	if(node-> req->crash_mode() ==wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) while(true);
-	else std::cout << "not setting" <<std::endl;
+
         const auto path = getServerPath(std::to_string(request->address()), server_id);
         std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
 
@@ -191,13 +186,6 @@ int append_write_request(const WriteReq* request) {
     std::promise<int> promise_obj;
     std::future<int> future_obj = promise_obj.get_future();
     Node node(request, promise_obj);
-
-    // set the bool here so the write thread will be stuck in a while loop
-  //  if(request->crash_mode() ==  wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) crash_before_local_write = true;
-    
-    // set the bool here so the write thread will kill server after local write
-    //if(request->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_AFTER_LOCAL_WRITE_BEFORE_REMOTE) crash_after_local_write = true;
-
     sem_wait(&mutex_queue);
 
     write_queue.push(&node);
