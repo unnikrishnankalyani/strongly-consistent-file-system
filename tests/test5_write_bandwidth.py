@@ -25,7 +25,7 @@ import sys
 #Client Steps
 #Step 1: Init the clients.
 
-num_clients = sys.argv[1]
+num_clients = int(sys.argv[1])
 
 client = [0]*(num_clients+1)
 
