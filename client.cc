@@ -14,6 +14,7 @@ extern "C" {
 int init() {
     options.wifsclient[0] = new WifsClient(grpc::CreateChannel(ip_server_wifs_1, grpc::InsecureChannelCredentials()));
     options.wifsclient[1] = new WifsClient(grpc::CreateChannel(ip_server_wifs_2, grpc::InsecureChannelCredentials()));
+    primary_server = servers[primary_index];
 }
 
 void assign_primary() {
@@ -86,7 +87,7 @@ int do_read(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
 }
 
 int do_write(int address, char* buf, wifs::WriteReq_Crash crash_mode) {
-    if (primary_server == "") assign_primary();
+    if (options.wifsclient[0] == NULL) assign_primary();
 
     int rc = options.wifsclient[primary_index]->wifs_WRITE(address, buf, crash_mode);
     //std::cout << "Write Return code: " << rc << std::endl;
