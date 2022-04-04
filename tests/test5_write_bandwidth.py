@@ -77,6 +77,7 @@ totaltime = time.time() - starttime
 
 
 b_width = (4096 * num_clients)/ (totaltime * 1024)
+print(totaltime)
 #print("reached this place 4")
 
 # output the total time into a file.
