@@ -52,17 +52,17 @@ class Client():
     def __init__(self):
         self.libclient = CDLL(os.path.abspath("../cmake/build/libclient.so"))
         self.libclient.init()
-        
-    def read(self, address):
+
+    def read(self, address, crash_mode=0):
         self.address = get_offset(address)
         self.read_buf = get_read_buffer(4096)
-        self.libclient.do_read(self.address, self.read_buf)
+        self.libclient.do_read(self.address, self.read_buf, crash_mode)
         self.read_buf = self.read_buf.value.decode("utf-8")
     
-    def write(self, address, buffer):
+    def write(self, address, buffer,crash_mode=0):
         address = get_offset(address)
         write_buf = get_write_buffer(buffer)
-        self.libclient.do_write(address, write_buf)    
+        self.libclient.do_write(address, write_buf,crash_mode)    
 
     def init(self):
         self.libclient.init()
@@ -72,5 +72,3 @@ def get_random_4KB():
     letters = string.ascii_uppercase + string.ascii_lowercase + string.ascii_letters + string.digits + string.punctuation
     temp = ''.join(random.choice(letters) for i in range(4096)) 
     return(temp)
-
-

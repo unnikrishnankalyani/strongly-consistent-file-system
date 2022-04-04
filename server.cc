@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <csignal>
 
 #include <fstream>
 #include <iostream>
@@ -102,6 +103,10 @@ class Node {
 std::queue<Node*> write_queue;
 std::queue<WriteRequest> log_queue;
 
+void killserver() {
+    kill(getpid(), SIGKILL);
+}
+
 void set_election_state_value(std::string local_state) {
     sem_wait(&mutex_election);
     election_state = local_state;
@@ -119,11 +124,16 @@ void start_transition_log(const WriteRequest write_request) {
     sem_wait(&mutex_election);
     sem_wait(&mutex_queue);
     std::string local_state(election_state);
-    if (local_state == "BACKUP"){
-        std::queue<WriteRequest> empty;
-        std::swap(log_queue, empty); 
+    if (local_state == "BACKUP") {
+        while(!log_queue.empty()) {
+            log_queue.pop();
+            sem_wait(&sem_log_queue);
+        }
     }
+    std::cout<<"appending to failure log queue, to be safe\n";
     log_queue.push(write_request);
+    sem_post(&sem_log_queue);
+
     sem_post(&mutex_queue);
     sem_post(&mutex_election);
 }
@@ -135,15 +145,23 @@ void local_write(void) {
         write_queue.pop();
 
         const WriteReq* request = node->req;
+	    if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) while(true);
+
         const auto path = getServerPath(std::to_string(request->address()), server_id);
         //std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
 
         const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
+<<<<<<< HEAD
         //if (fd == -1) std::cout << "open failed " << strerror(errno) << "\n";
+=======
+        if (fd == -1) std::cout << "open failed " << strerror(errno) << "\n";
+>>>>>>> fde004bc692f274c3151e8bcc1565b2de66b43e4
 
         int rc = pwrite(fd, (void*)request->buf().c_str(), BLOCK_SIZE, request->address());
         //if (rc == -1) std::cout << "write failed " << strerror(errno) << "\n";
         node->promise_obj.set_value(rc);
+
+        if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_AFTER_LOCAL_WRITE_BEFORE_REMOTE) killserver();
     }
     return;
 }
@@ -172,7 +190,6 @@ int append_write_request(const WriteReq* request) {
     std::promise<int> promise_obj;
     std::future<int> future_obj = promise_obj.get_future();
     Node node(request, promise_obj);
-
     sem_wait(&mutex_queue);
 
     write_queue.push(&node);
@@ -182,10 +199,25 @@ int append_write_request(const WriteReq* request) {
     WriteRequest write_request;
     write_request.set_blk_address(request->address());
     write_request.set_buffer(request->buf());
-
+    switch(request->crash_mode()) {
+        case wifs::WriteReq_Crash_BACKUP_CRASH_BEFORE_WRITE: {
+            write_request.set_crash_mode(primarybackup::WriteRequest_Crash_BACKUP_CRASH_BEFORE_WRITE);
+            break;
+        }
+        case wifs::WriteReq_Crash_BACKUP_CRASH_AFTER_WRITE: {
+            write_request.set_crash_mode(primarybackup::WriteRequest_Crash_BACKUP_CRASH_AFTER_WRITE);
+            break;
+        }
+        default: {
+            // do nothing
+        }
+    }
     sem_wait(&mutex_pending_grpc_write);
     pending_write_address = request->address();
     sem_post(&mutex_pending_grpc_write);
+
+    // block here so that you don't do remote write
+    if(request->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_AFTER_LOCAL_WRITE_BEFORE_REMOTE) while(true);
 
     if (remote_write(write_request) == -1) {
         other_node_down = true;
@@ -195,6 +227,10 @@ int append_write_request(const WriteReq* request) {
     } else {
         other_node_down = false;
     }
+
+    // now crash here since your remote call has gone through, but you didn't write locally [because of the infinite while]
+    if(request->crash_mode() ==  wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) killserver();
+    
     sem_post(&mutex_queue);
 
     sem_wait(&mutex_pending_grpc_write);
@@ -212,6 +248,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
     }
 
     Status Write(ServerContext* context, const WriteRequest* request, WriteResponse* reply) {
+        if(request->crash_mode() == primarybackup::WriteRequest_Crash_BACKUP_CRASH_BEFORE_WRITE) killserver();
         start_transition_log(*request);
         std::promise<int> promise_obj;
         std::future<int> future_obj = promise_obj.get_future();
@@ -225,6 +262,9 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
         sem_post(&sem_queue);
 
         reply->set_status(future_obj.get() == -1 ? primarybackup::WriteResponse_Status_FAIL : primarybackup::WriteResponse_Status_PASS);
+
+        if(request->crash_mode() == primarybackup::WriteRequest_Crash_BACKUP_CRASH_AFTER_WRITE) killserver();
+        
         return Status::OK;
     }
 
@@ -287,6 +327,9 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
 class WifsServiceImplementation final : public WIFS::Service {
     Status wifs_WRITE(ServerContext* context, const WriteReq* request,
                       WriteRes* reply) override {
+        // crash before local write and before remote write
+        if(request->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_BEFORE_REMOTE) killserver();
+        
         // check if this is primary or not, and then only do the write.
         std::string local_election_state = get_election_state_value();
         if (local_election_state != "PRIMARY") {
@@ -298,11 +341,17 @@ class WifsServiceImplementation final : public WIFS::Service {
         reply->set_status(wifs::WriteRes_Status_FAIL);
         if (append_write_request(request) == -1) return Status::OK;
         reply->set_status(other_node_down ? wifs::WriteRes_Status_SOLO : wifs::WriteRes_Status_PASS);
+        
+        // crash after local write and after remote write
+        if(request->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_AFTER_LOCAL_WRITE_AFTER_REMOTE) killserver();
+        
         return Status::OK;
     }
 
     Status wifs_READ(ServerContext* context, const ReadReq* request,
                      ReadRes* reply) override {
+        if(request->crash_mode() == wifs::ReadReq_Crash_NODE_CRASH_READ) killserver();
+
         bool is_grpc_write_pending = false;
         sem_wait(&mutex_pending_grpc_write);
         is_grpc_write_pending = (pending_write_address >= std::max(request->address() - BLOCK_SIZE, 0) && pending_write_address < request->address() + BLOCK_SIZE);
@@ -468,7 +517,11 @@ void update_state_to_latest(int retry_count) {
         //std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
 
         const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
+<<<<<<< HEAD
         //if (fd == -1) std::cout << "sync open failed " << strerror(errno) << "\n";
+=======
+        if (fd == -1) std::cout << "sync open failed " << strerror(errno) << "\n";
+>>>>>>> fde004bc692f274c3151e8bcc1565b2de66b43e4
 
         int rc = pwrite(fd, (void*)reply.buffer().c_str(), BLOCK_SIZE, reply.blk_address());
         //if (rc == -1) std::cout << "sync write failed " << strerror(errno) << "\n";
@@ -539,7 +592,10 @@ int main(int argc, char** argv) {
 
     update_state_to_latest(0);
 
+<<<<<<< HEAD
     //std::cout << "synced to latest state\n";
+=======
+>>>>>>> fde004bc692f274c3151e8bcc1565b2de66b43e4
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server);
     std::thread hb_thread(check_heartbeat);
