@@ -138,7 +138,7 @@ void local_write(void) {
         const auto path = getServerPath(std::to_string(request->address()), server_id);
         std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
 
-        const int fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG);
+        const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
         if (fd == -1) std::cout << "open failed " << strerror(errno) << "\n";
 
         int rc = pwrite(fd, (void*)request->buf().c_str(), BLOCK_SIZE, request->address());
@@ -467,7 +467,7 @@ void update_state_to_latest(int retry_count) {
         const auto path = getServerPath(std::to_string(reply.blk_address()), server_id);
         std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
 
-        const int fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG);
+        const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
         if (fd == -1) std::cout << "sync open failed " << strerror(errno) << "\n";
 
         int rc = pwrite(fd, (void*)reply.buffer().c_str(), BLOCK_SIZE, reply.blk_address());
