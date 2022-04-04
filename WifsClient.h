@@ -58,7 +58,6 @@ class WifsClient {
         request.set_buf(std::string(buf));
         request.set_crash_mode(crash_mode);
         Status status = stub_->wifs_WRITE(&context, request, &reply);
-        kill(getpid(), SIGKILL);
         if (!status.ok()) return -1;
 
         if (reply.status() == wifs::WriteRes_Status_RETRY) {
