@@ -145,7 +145,7 @@ void local_write(void) {
         write_queue.pop();
 
         const WriteReq* request = node->req;
-	if(node-> req->crash_mode() ==wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) while(true);
+	    if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) while(true);
 
         const auto path = getServerPath(std::to_string(request->address()), server_id);
         std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
@@ -201,7 +201,7 @@ int append_write_request(const WriteReq* request) {
             break;
         }
         case wifs::WriteReq_Crash_BACKUP_CRASH_AFTER_WRITE: {
-            write_request.set_crash_mode(primarybackup::WriteRequest_Crash_BACKUP_CRASH_BEFORE_WRITE);
+            write_request.set_crash_mode(primarybackup::WriteRequest_Crash_BACKUP_CRASH_AFTER_WRITE);
             break;
         }
         default: {
@@ -225,9 +225,8 @@ int append_write_request(const WriteReq* request) {
     }
 
     // now crash here since your remote call has gone through, but you didn't write locally [because of the infinite while]
-    if(request->crash_mode() ==  wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE){
-        killserver();
-    }
+    if(request->crash_mode() ==  wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) killserver();
+    
     sem_post(&mutex_queue);
 
     sem_wait(&mutex_pending_grpc_write);
@@ -261,7 +260,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
         reply->set_status(future_obj.get() == -1 ? primarybackup::WriteResponse_Status_FAIL : primarybackup::WriteResponse_Status_PASS);
 
         if(request->crash_mode() == primarybackup::WriteRequest_Crash_BACKUP_CRASH_AFTER_WRITE) killserver();
-
+        
         return Status::OK;
     }
 
