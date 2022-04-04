@@ -54,7 +54,7 @@ int do_read(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
     long microseconds = end.tv_usec - begin.tv_usec;
     double elapsed = seconds + microseconds*1e-6;
 
-    std::cout << elapsed << std::endl;
+    //std::cout << elapsed << std::endl;
 
     //std::cout << "Read Return code: " << rc << std::endl;
     // call goes through, just return
@@ -83,7 +83,7 @@ int do_read(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
 
     // now rc is 3, which means the read will be serviced by the other node, but no change in primary
     // read couldn't be serviced by this node, probably blocking grpc update operation
-    // don't swtich primary.
+    // don't switch primary.
     rc = options.wifsclient[1 - read_index]->wifs_READ(address, buf, crash_mode);
     std::cout << "Read Return code: " << rc << std::endl;
 
@@ -124,7 +124,7 @@ int do_write(int address, char* buf, wifs::WriteReq_Crash crash_mode) {
     long seconds = end.tv_sec - begin.tv_sec;
     long microseconds = end.tv_usec - begin.tv_usec;
     double elapsed = seconds + microseconds*1e-6;
-    std::cout << elapsed << std::endl;
+    //std::cout << elapsed << std::endl;
     if (!rc) return 0;
 
     if (rc < 0) {  // call failed

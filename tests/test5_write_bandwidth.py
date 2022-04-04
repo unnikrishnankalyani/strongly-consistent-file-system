@@ -25,7 +25,7 @@ import threading
 #Client Steps
 #Step 1: Init the clients.
 
-num_clients = 5
+num_clients = 8192
 
 client = [0]*(num_clients+1)
 
@@ -45,7 +45,6 @@ client_buf_main = get_random_4KB()
 
 #threads definition
 def thread_client_write(i):
-    #client[i].write(0, client_buf_main)
     client[i].write(4096*i, client_buf_main)
     pass
 
@@ -53,17 +52,13 @@ def thread_client_write(i):
 def thread_client_read(i):
     client[i].read(4096)
 
-def thread_client_init(i):
-    client[i].init()
 
-
-client[0].init()
+# client[0].init()
 
 # Perform the writes.++++++++++++++++++++++++++++++++++++++++++++++
 for i in range(num_clients):
     #print("reached this place 1")
     client_buf[i] = get_random_4KB()    
-    #y[i] = threading.Thread(target=thread_client_init, args=(i,))
     x[i] = threading.Thread(target=thread_client_write, args=(i,))
     
 starttime = time.time()
