@@ -5,7 +5,7 @@ import time
 
 import logging
 import threading
-
+import sys
 
 # Test 4: Checking read and write bandwidth for multiple clients.
 
@@ -25,7 +25,7 @@ import threading
 #Client Steps
 #Step 1: Init the clients.
 
-num_clients = 8192
+num_clients = sys.argv[1]
 
 client = [0]*(num_clients+1)
 
