@@ -130,7 +130,7 @@ void start_transition_log(const WriteRequest write_request) {
             sem_wait(&sem_log_queue);
         }
     }
-    std::cout<<"appending to failure log queue, to be safe\n";
+    //std::cout<<"appending to failure log queue, to be safe\n";
     log_queue.push(write_request);
     sem_post(&sem_log_queue);
 

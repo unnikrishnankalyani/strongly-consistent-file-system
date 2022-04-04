@@ -54,7 +54,7 @@ int do_read(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
     long microseconds = end.tv_usec - begin.tv_usec;
     double elapsed = seconds + microseconds*1e-6;
 
-    //std::cout << elapsed << std::endl;
+    std::cout << elapsed << std::endl;
 
     //std::cout << "Read Return code: " << rc << std::endl;
     // call goes through, just return
@@ -114,7 +114,7 @@ int do_write(int address, char* buf, wifs::WriteReq_Crash crash_mode) {
     int rc = options.wifsclient[primary_index]->wifs_WRITE(address, buf, crash_mode);
     //std::cout << "Write Return code: " << rc << std::endl;
     // call goes through, just return
-    
+    gettimeofday(&end, 0);
     long seconds = end.tv_sec - begin.tv_sec;
     long microseconds = end.tv_usec - begin.tv_usec;
     double elapsed = seconds + microseconds*1e-6;
@@ -141,7 +141,7 @@ int do_write(int address, char* buf, wifs::WriteReq_Crash crash_mode) {
         //std::cout << "Server running in SOLO mode. No more read distribution" << primary_server << std::endl;
         return 0;
     }
-    gettimeofday(&end, 0);
+
     
     return -1;
 }
