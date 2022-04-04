@@ -51,7 +51,8 @@ class Server():
 class Client():
     def __init__(self):
         self.libclient = CDLL(os.path.abspath("../cmake/build/libclient.so"))
-
+        self.libclient.init()
+        
     def read(self, address):
         self.address = get_offset(address)
         self.read_buf = get_read_buffer(4096)
