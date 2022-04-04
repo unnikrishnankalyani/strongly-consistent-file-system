@@ -32,7 +32,7 @@ int do_read(int address, char* buf, Crash crash_mode) {
     static int rand_index = 0;
     rand_index++;
     
-    if (primary_server == "") assign_primary();
+    if (options.wifsclient[0] == NULL) assign_primary();
     std::cout << "Current PRIMARY: " << primary_server << std::endl;
 
     read_index = single_server ? primary_index : rand_index % 2;
