@@ -151,11 +151,7 @@ void local_write(void) {
         //std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
 
         const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
-<<<<<<< HEAD
         //if (fd == -1) std::cout << "open failed " << strerror(errno) << "\n";
-=======
-        if (fd == -1) std::cout << "open failed " << strerror(errno) << "\n";
->>>>>>> fde004bc692f274c3151e8bcc1565b2de66b43e4
 
         int rc = pwrite(fd, (void*)request->buf().c_str(), BLOCK_SIZE, request->address());
         //if (rc == -1) std::cout << "write failed " << strerror(errno) << "\n";
@@ -517,11 +513,7 @@ void update_state_to_latest(int retry_count) {
         //std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
 
         const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
-<<<<<<< HEAD
         //if (fd == -1) std::cout << "sync open failed " << strerror(errno) << "\n";
-=======
-        if (fd == -1) std::cout << "sync open failed " << strerror(errno) << "\n";
->>>>>>> fde004bc692f274c3151e8bcc1565b2de66b43e4
 
         int rc = pwrite(fd, (void*)reply.buffer().c_str(), BLOCK_SIZE, reply.blk_address());
         //if (rc == -1) std::cout << "sync write failed " << strerror(errno) << "\n";
@@ -592,10 +584,7 @@ int main(int argc, char** argv) {
 
     update_state_to_latest(0);
 
-<<<<<<< HEAD
     //std::cout << "synced to latest state\n";
-=======
->>>>>>> fde004bc692f274c3151e8bcc1565b2de66b43e4
     std::thread writer_thread(local_write);
     std::thread internal_server(run_pb_server);
     std::thread hb_thread(check_heartbeat);

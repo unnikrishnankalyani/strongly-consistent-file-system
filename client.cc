@@ -46,7 +46,7 @@ int do_read(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
         return -1;
     }
 
-    int rc = options.wifsclient[read_index]->wifs_READ(address, buf), crash_mode;
+    int rc = options.wifsclient[read_index]->wifs_READ(address, buf, crash_mode);
 
     // Stop measuring time and calculate the elapsed time
     gettimeofday(&end, 0);
@@ -103,28 +103,6 @@ int do_read(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
     return -1;  // this should never happen.
 }
 
-int do_write(int address, char* buf) {
-    // if(options.wifsclient[0] == NULL){
-    //     assign_primary();
-    // }
-    if (primary_server == "") assign_primary();
-    // Start measuring time
-    struct timeval begin, end;
-    gettimeofday(&begin, 0);
-      if(options.wifsclient[0] == NULL or options.wifsclient[1] == NULL){
-        //std::cout << "Null value for WIFSclient. Exiting" <<std::endl;
-        return -1;
-    }
-    int rc = options.wifsclient[primary_index]->wifs_WRITE(address, buf);
-    
-    // Stop measuring time and calculate the elapsed time
-    gettimeofday(&end, 0);
-    long seconds = end.tv_sec - begin.tv_sec;
-    long microseconds = end.tv_usec - begin.tv_usec;
-    double elapsed = seconds + microseconds*1e-6;
-
-    std::cout << elapsed << std::endl;
-
 int do_write(int address, char* buf, wifs::WriteReq_Crash crash_mode) {
     if (options.wifsclient[0] == NULL) assign_primary();
     struct timeval begin, end;
@@ -137,7 +115,9 @@ int do_write(int address, char* buf, wifs::WriteReq_Crash crash_mode) {
     //std::cout << "Write Return code: " << rc << std::endl;
     // call goes through, just return
     
-
+    long seconds = end.tv_sec - begin.tv_sec;
+    long microseconds = end.tv_usec - begin.tv_usec;
+    double elapsed = seconds + microseconds*1e-6;
     std::cout << elapsed << std::endl;
     if (!rc) return 0;
 
@@ -162,10 +142,7 @@ int do_write(int address, char* buf, wifs::WriteReq_Crash crash_mode) {
         return 0;
     }
     gettimeofday(&end, 0);
-    long seconds = end.tv_sec - begin.tv_sec;
-    long microseconds = end.tv_usec - begin.tv_usec;
-    double elapsed = seconds + microseconds*1e-6;
-    std::cout << elapsed << std::endl;
+    
     return -1;
 }
 }
