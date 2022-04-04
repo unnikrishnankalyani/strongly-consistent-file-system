@@ -7,34 +7,36 @@ import logging
 import threading
 
 
-# Test 1: Checking read and write bandwidth for multiple clients.
+# Test 4: Checking read and write bandwidth for multiple clients.
 
-#The helper functions defined in tester.py convert the python objects to c objects that can be used for the functions. 
-#Use the same functions for generating ip addresses, write buffers and read buffers
 
-#Server steps
+
+#Server steps: for this test initialize primary and backup on different machines.
+#+++++++++++++++++++++++++++++++++++++++++++++++++++
 # print("Step 1. Initialize Primary with Server ID")
 # primary = Server(1)
 # primary.run_server()
 # print("Step 2. Initialize backup with Server ID")
 # secondary = Server(2)
 # secondary.run_server()
+#+++++++++++++++++++++++++++++++++++++++++++++++++++
 
-time.sleep(2)
+
 #Client Steps
-#Step 1: Init the client with the IP to use for primary
+#Step 1: Init the clients.
 
-k = 1
+num_clients = 1
 
-client = [0]*(k+1)
-for i in range(k):
+client = [0]*(num_clients+1)
+
+for i in range(num_clients):
     client[i] = Client()    
 
-client_buf = [0]*(k+1)
-time_writes = [0]*(k+1)
-time_reads = [0]*(k+1)
-x = [0]*(k+1)
-y = [0]*(k+1)
+client_buf = [0]*(num_clients+1)
+time_writes = [0]*(num_clients+1)
+time_reads = [0]*(num_clients+1)
+x = [0]*(num_clients+1)
+y = [0]*(num_clients+1)
 
 def thread_client_write(name, i):
     
@@ -53,14 +55,14 @@ def thread_client_read(name, i):
 
 
 #print("Step 2: Perform the writes")
-for i in range(k):
+for i in range(num_clients):
     client_buf[i] = get_random_4KB()
     
     x[i] = threading.Thread(target=thread_client_write, args=(1,i))
     x[i].start()
     
 # waiting for all write to finish in main thread.
-for i in range(k):
+for i in range(num_clients):
     x[i].join()
 
 

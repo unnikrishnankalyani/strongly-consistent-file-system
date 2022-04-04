@@ -22,6 +22,9 @@ using wifs::WriteRes;
 
 #define BLOCK_SIZE 4096
 
+
+
+
 class WifsClient {
    public:
     WifsClient(std::shared_ptr<Channel> channel) : stub_(WIFS::NewStub(channel)) {}
@@ -70,3 +73,8 @@ class WifsClient {
    private:
     std::unique_ptr<WIFS::Stub> stub_;
 };
+
+struct options {
+    WifsClient* wifsclient[2];
+    int show_help;
+} options;

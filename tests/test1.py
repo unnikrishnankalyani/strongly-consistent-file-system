@@ -22,8 +22,7 @@ import time
 client1 = Client()
 
 #Step 2: Perform the write
-client1.write(0, "f" * 4096)
-
+#client1.write(0, "f" * 4096)
 #Step 3: Perform the read
 client1.read(0)
 

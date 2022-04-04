@@ -6,11 +6,6 @@
 
 #include <sys/time.h>
 
-static struct options {
-    WifsClient* wifsclient[2];
-    int show_help;
-} options;
-
 extern "C" {
 
 int init() {
@@ -20,7 +15,7 @@ int init() {
 
 void assign_primary() {
     primary_server = servers[primary_index];
-    init();
+    //init();
     //std::cout << "Changed PRIMARY: " << primary_server << std::endl;
 }
 
@@ -33,16 +28,22 @@ void switch_primary(int index) {
 int do_read(int address, char* buf) {
     static int rand_index = 0;
     rand_index++;
-    
     if (primary_server == "") assign_primary();
+    //std::cout<< "Current value of primary: "<<primary_server<<std::endl; 
     //std::cout << "Current PRIMARY: " << primary_server << std::endl;
-
+    // if(options.wifsclient[0] == NULL){
+    //     assign_primary();
+    // }
     read_index = single_server ? primary_index : rand_index % 2;
     //std::cout<<"reading from "<<servers[read_index]<<std::endl;
     
     // Start measuring time
     struct timeval begin, end;
     gettimeofday(&begin, 0);
+    if(options.wifsclient[0] == NULL or options.wifsclient[1] == NULL){
+        std::cout << "Null value for WIFSclient. Exiting" <<std::endl;
+        return -1;
+    }
 
     int rc = options.wifsclient[read_index]->wifs_READ(address, buf);
 
@@ -52,7 +53,7 @@ int do_read(int address, char* buf) {
     long microseconds = end.tv_usec - begin.tv_usec;
     double elapsed = seconds + microseconds*1e-6;
 
-    std::cout << elapsed << std::endl;
+    //std::cout << elapsed << std::endl;
 
     //std::cout << "Read Return code: " << rc << std::endl;
     // call goes through, just return
@@ -102,12 +103,17 @@ int do_read(int address, char* buf) {
 }
 
 int do_write(int address, char* buf) {
+    // if(options.wifsclient[0] == NULL){
+    //     assign_primary();
+    // }
     if (primary_server == "") assign_primary();
-
     // Start measuring time
     struct timeval begin, end;
     gettimeofday(&begin, 0);
-    
+      if(options.wifsclient[0] == NULL or options.wifsclient[1] == NULL){
+        std::cout << "Null value for WIFSclient. Exiting" <<std::endl;
+        return -1;
+    }
     int rc = options.wifsclient[primary_index]->wifs_WRITE(address, buf);
     
     // Stop measuring time and calculate the elapsed time
@@ -116,7 +122,7 @@ int do_write(int address, char* buf) {
     long microseconds = end.tv_usec - begin.tv_usec;
     double elapsed = seconds + microseconds*1e-6;
 
-    //std::cout << elapsed << std::endl;
+    std::cout << elapsed << std::endl;
 
     //std::cout << "Write Return code: " << rc << std::endl;
     // call goes through, just return
