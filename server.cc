@@ -83,8 +83,8 @@ bool other_node_syncing = false;
 
 bool other_node_down = false;
 
-bool crash_before_local_write = false;
-bool crash_after_local_write = false;
+volatile bool crash_before_local_write = false;
+volatile bool crash_after_local_write = false;
 
 std::unique_ptr<PrimaryBackup::Stub> client_stub_;
 
@@ -149,6 +149,8 @@ void local_write(void) {
         write_queue.pop();
 
         const WriteReq* request = node->req;
+	if(node-> req->crash_mode() ==wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) while(true);
+	else std::cout << "not setting" <<std::endl;
         const auto path = getServerPath(std::to_string(request->address()), server_id);
         std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
 
