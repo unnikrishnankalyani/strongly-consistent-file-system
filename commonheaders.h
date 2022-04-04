@@ -23,8 +23,8 @@
 std::string ip_master = "localhost:50051";
 std::string ip_server_pb_1 = "localhost:50052";
 std::string ip_server_pb_2 = "localhost:50053";
-std::string ip_server_wifs_1 = "localhost:50054";
-std::string ip_server_wifs_2 = "localhost:50055";
+std::string ip_server_wifs_1 = "10.10.1.4:50054";
+std::string ip_server_wifs_2 = "10.10.1.4:50055";
 std::string primary_server = "";
 std::string servers [2] = {ip_server_wifs_1, ip_server_wifs_2};
 

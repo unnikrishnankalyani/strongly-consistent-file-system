@@ -18,7 +18,7 @@ import time
 #Client Steps
 #Step 1: Init the client with the IP to use for primary
 client1 = Client()
-
+client1.init()
 #Step 2: Perform the write
 client1.write(0, "f" * 4096, 0)
 

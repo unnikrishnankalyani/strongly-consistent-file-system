@@ -87,11 +87,17 @@ int do_read(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
     rc = options.wifsclient[1 - read_index]->wifs_READ(address, buf, crash_mode);
     std::cout << "Read Return code: " << rc << std::endl;
 
+    if (!rc) return 0;
+
     if (rc < 0) {
         switch_primary(read_index);
         single_server = 1;
         //std::cout << "Read Call FAILED. Trying other node" << primary_server << std::endl;
         return do_read(address, buf, wifs::ReadReq_Crash_NO_CRASH);
+    }
+
+    if (rc==0){
+
     }
     // rc should never be 1 here.
     if (rc == 2) {
