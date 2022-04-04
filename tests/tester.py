@@ -44,13 +44,13 @@ class Server():
         self.server_id = server_id
 
     def run_server(self):
-        self.server = Popen([os.path.abspath('../cmake/build/server'), \
+        self.server = Popen([os.path.abspath('/users/oahmed4/Strongly-Consistent-FS/cmake/build/server'), \
             str(self.server_id)], shell=False, close_fds=True)#, stdout=DEVNULL, stderr=STDOUT)
         #self.server.communicate()
 
 class Client():
     def __init__(self):
-        self.libclient = CDLL(os.path.abspath("../cmake/build/libclient.so"))
+        self.libclient = CDLL(os.path.abspath("/users/oahmed4/Strongly-Consistent-FS/cmake/build/libclient.so"))
         self.libclient.init()
 
     def read(self, address, crash_mode=0):
