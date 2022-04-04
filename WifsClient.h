@@ -30,7 +30,7 @@ class WifsClient {
     int interval = 1000;
     int retries = 1;
 
-    int wifs_READ(int address, char buf[BLOCK_SIZE], Crash crash_mode) {
+    int wifs_READ(int address, char buf[BLOCK_SIZE], wifs::ReadReq_Crash crash_mode) {
         ClientContext context;
         ReadReq request;
         ReadRes reply;
@@ -50,7 +50,7 @@ class WifsClient {
         return reply.primary_ip() == primary_server ? 0 : 1;
     }
 
-    int wifs_WRITE(int address, char buf[BLOCK_SIZE], int failure_mode) {
+    int wifs_WRITE(int address, char buf[BLOCK_SIZE], wifs::WriteReq_Crash crash_mode) {
         ClientContext context;
         WriteReq request;
         WriteRes reply;

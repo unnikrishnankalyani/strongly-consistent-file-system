@@ -83,7 +83,7 @@ bool other_node_syncing = false;
 
 bool other_node_down = false;
 
-bool crash_before_local_write = false;
+bool crash_before_local_write = true;
 bool crash_after_local_write = false;
 
 std::unique_ptr<PrimaryBackup::Stub> client_stub_;
@@ -153,7 +153,7 @@ void local_write(void) {
         const auto path = getServerPath(std::to_string(request->address()), server_id);
         std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
 
-        const int fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG);
+        const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
         if (fd == -1) std::cout << "open failed " << strerror(errno) << "\n";
 
         int rc = pwrite(fd, (void*)request->buf().c_str(), BLOCK_SIZE, request->address());
@@ -235,8 +235,9 @@ int append_write_request(const WriteReq* request) {
     }
 
     // now crash here since your remote call has gone through, but you didn't write locally [because of the infinite while]
-    if(request->crash_mode() ==  wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) killserver();
-
+    if(request->crash_mode() ==  wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE){
+        killserver();
+    }
     sem_post(&mutex_queue);
 
     sem_wait(&mutex_pending_grpc_write);
@@ -522,7 +523,7 @@ void update_state_to_latest(int retry_count) {
         const auto path = getServerPath(std::to_string(reply.blk_address()), server_id);
         std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
 
-        const int fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG);
+        const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
         if (fd == -1) std::cout << "sync open failed " << strerror(errno) << "\n";
 
         int rc = pwrite(fd, (void*)reply.buffer().c_str(), BLOCK_SIZE, reply.blk_address());

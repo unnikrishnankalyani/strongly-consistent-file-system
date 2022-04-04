@@ -41,21 +41,3 @@ std::string getServerDir(int machine_id){
 std::string getServerPath(std::string address, int machine_id) {
     return getServerDir(machine_id) + "/bs" ;//"/file_" + address;
 }
-
-enum Crash {
-    NO_CRASH,
-
-    PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE,
-
-    PRIMARY_CRASH_AFTER_LOCAL_WRITE_AFTER_REMOTE,
-
-    PRIMARY_CRASH_BEFORE_LOCAL_WRITE_BEFORE_REMOTE,
-
-    PRIMARY_CRASH_AFTER_LOCAL_WRITE_BEFORE_REMOTE,
-
-    BACKUP_CRASH_BEFORE_WRITE,
-
-    BACKUP_CRASH_AFTER_WRITE,
-
-    NODE_CRASH_READ,
-  };

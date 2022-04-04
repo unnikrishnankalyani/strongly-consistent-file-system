@@ -28,7 +28,7 @@ void switch_primary(int index) {
     //std::cout<<"primary switched to "<<primary_server<<"\n";
 }
 
-int do_read(int address, char* buf, Crash crash_mode) {
+int do_read(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
     static int rand_index = 0;
     rand_index++;
     
@@ -46,7 +46,7 @@ int do_read(int address, char* buf, Crash crash_mode) {
         switch_primary(read_index);
         single_server = 1;
         std::cout << "Read Call FAILED. Trying other node" << primary_server << std::endl;
-        return do_read(address, buf, 0);
+        return do_read(address, buf, wifs::ReadReq_Crash_NO_CRASH);
     }
 
     if (rc == 1) {
@@ -73,7 +73,7 @@ int do_read(int address, char* buf, Crash crash_mode) {
         switch_primary(read_index);
         single_server = 1;
         std::cout << "Read Call FAILED. Trying other node" << primary_server << std::endl;
-        return do_read(address, buf, 0);
+        return do_read(address, buf, wifs::ReadReq_Crash_NO_CRASH);
     }
     // rc should never be 1 here.
     if (rc == 2) {
@@ -85,7 +85,7 @@ int do_read(int address, char* buf, Crash crash_mode) {
     return -1;  // this should never happen.
 }
 
-int do_write(int address, char* buf, Crash crash_mode) {
+int do_write(int address, char* buf, wifs::WriteReq_Crash crash_mode) {
     if (primary_server == "") assign_primary();
 
     int rc = options.wifsclient[primary_index]->wifs_WRITE(address, buf, crash_mode);
@@ -97,7 +97,7 @@ int do_write(int address, char* buf, Crash crash_mode) {
         switch_primary(primary_index);
         single_server = 1;
         //std::cout << "Write Call FAILED. Trying other node" << primary_server << std::endl;
-        return do_write(address, buf, 0);  // repeat operation
+        return do_write(address, buf, wifs::WriteReq_Crash_NO_CRASH);  // repeat operation
     }
 
     if (rc == 1) {  // primary has changed
