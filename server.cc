@@ -364,6 +364,7 @@ class WifsServiceImplementation final : public WIFS::Service {
             // before pushing the write to failure log and resetting is_grpc_write_pending.
             reply->set_status(wifs::ReadRes_Status_RETRY);
             reply->set_node_ip(cur_node_wifs_address == ip_server_wifs_1 ? ip_server_wifs_2 : ip_server_wifs_1);
+            std::cout << "Returning OK" <<std::endl;
             return Status::OK;
         }
 
@@ -373,6 +374,7 @@ class WifsServiceImplementation final : public WIFS::Service {
         const int fd = ::open(path.c_str(), O_RDONLY);
         if (fd == -1) {
             reply->set_status(wifs::ReadRes_Status_FAIL);
+            std::cout << "Returning OK" <<std::endl;
             return Status::OK;
         }
 
@@ -381,6 +383,7 @@ class WifsServiceImplementation final : public WIFS::Service {
         buffer.assign((std::istreambuf_iterator<char>(file_inp)), std::istreambuf_iterator<char>());
         reply->set_status(other_node_down ? wifs::ReadRes_Status_SOLO : wifs::ReadRes_Status_PASS);
         reply->set_buf(buffer);
+        std::cout << "Returning OK" <<std::endl;
         return Status::OK;
     }
 };
