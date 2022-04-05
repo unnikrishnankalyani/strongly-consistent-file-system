@@ -16,7 +16,7 @@ int init() {
 
 void assign_primary() {
     primary_server = servers[primary_index];
-    //init();
+    init();
     //std::cout << "Changed PRIMARY: " << primary_server << std::endl;
 }
 
