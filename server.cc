@@ -75,6 +75,12 @@ sem_t mutex_pending_grpc_write;
 // used to ensure node doesn't respond to candidate request while it is a candidate itself
 sem_t mutex_election;
 
+// used to check status on file_tmp
+sem_t file_tmp_lock;
+
+// used to check status on file_tmp2
+sem_t file_tmp2_lock;
+
 // ensure that consensus happens only after the PB interfaces are up
 sem_t sem_consensus;
 
@@ -138,6 +144,29 @@ void start_transition_log(const WriteRequest write_request) {
     sem_post(&mutex_election);
 }
 
+void background_write_to_tmp2(const WriteReq* request) {
+    //wait until tmp2 file available
+    sem_wait(&file_tmp2_lock);
+    //lock tmp file to local writes
+    sem_wait(&file_tmp_lock);
+    //Durability_4. Write to file_tmp2 in background 
+    const auto path = getServerTmp2Path(server_id);
+    std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
+
+    const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
+    if (fd == -1) std::cout << "open failed " << strerror(errno) << "\n";
+
+    int rc = pwrite(fd, (void*)request->buf().c_str(), BLOCK_SIZE, request->address());
+    if (rc == -1) std::cout << "write failed " << strerror(errno) << "\n";
+
+    //Durability_5. Rename file_tmp2 to file_tmp
+    rename(path, getServerTmpPath(server_id));
+
+    //tmp file available for remote write
+    sem_post(&file_tmp_lock);
+    return;
+}
+
 void local_write(void) {
     while (true) {
         sem_wait(&sem_queue);
@@ -147,7 +176,12 @@ void local_write(void) {
         const WriteReq* request = node->req;
 	    if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) while(true);
 
-        const auto path = getServerPath(std::to_string(request->address()), server_id);
+        const auto path = getServerPath(server_id);
+        // Durability_1. Write to file_tmp
+        if(get_election_state_value == "PRIMARY"){
+            sem_wait(&file_tmp_lock);
+            const auto path = getServerTmpPath(server_id);
+        }
         std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
 
         const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
@@ -155,6 +189,7 @@ void local_write(void) {
 
         int rc = pwrite(fd, (void*)request->buf().c_str(), BLOCK_SIZE, request->address());
         if (rc == -1) std::cout << "write failed " << strerror(errno) << "\n";
+        if(get_election_state_value == "PRIMARY") sem_post(&file_tmp_lock);
         node->promise_obj.set_value(rc);
 
         if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_AFTER_LOCAL_WRITE_BEFORE_REMOTE) killserver();
@@ -337,6 +372,30 @@ class WifsServiceImplementation final : public WIFS::Service {
         reply->set_status(wifs::WriteRes_Status_FAIL);
         if (append_write_request(request) == -1) return Status::OK;
         reply->set_status(other_node_down ? wifs::WriteRes_Status_SOLO : wifs::WriteRes_Status_PASS);
+
+        /*
+        Durability protocol
+        File, file_tmp
+        1. Write to file_tmp
+        //after back up reply
+        2. Rename file to file_tmp2
+        3. Rename file_tmp to file
+        4. Write to file_tmp2 also in background 
+        5. Rename file_tmp2 to file_tmp
+
+        Cleanup protocol after start-
+        1. If file not present and file_tmp2 present, rename file_tmp2 as file (crashed between 3&4)
+        2. If file present, and file_tmp2 present, delete file_tmp2 (crashed after 4)
+        3. If file present and file_tmp present, keep both, they are fine
+        4. If file not present or file_tmp not present, create them
+        */     
+
+        //Durability_2. Rename file to file_tmp2
+        rename(getServerPath(server_id),getServerTmp2Path(server_id));
+
+        //Durability_3. Rename file_tmp to file
+        rename(getServerTmpPath(server_id),getServerPath(server_id));
+        sem_post(&file_tmp2_lock); //this will start bg thread, tmp file is not available for next remote write until background write is completed
         
         // crash after local write and after remote write
         if(request->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_AFTER_LOCAL_WRITE_AFTER_REMOTE) killserver();
@@ -367,7 +426,7 @@ class WifsServiceImplementation final : public WIFS::Service {
             return Status::OK;
         }
 
-        const auto path = getServerPath(std::to_string(request->address()), server_id);
+        const auto path = getServerPath(server_id);
         std::cout << "WIFS server PATH READ: " << path << std::endl;
 
         const int fd = ::open(path.c_str(), O_RDONLY);
@@ -509,7 +568,7 @@ void update_state_to_latest(int retry_count) {
     while (reader->Read(&reply)) {
         // don't use the write queue since that will add an overhead of populating a promise obj each time.
         // sync write should be fast, and not like write in normal operation
-        const auto path = getServerPath(std::to_string(reply.blk_address()), server_id);
+        const auto path = getServerPath(server_id);
         std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
 
         const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
@@ -522,7 +581,7 @@ void update_state_to_latest(int retry_count) {
     Status status = reader->Finish();
     if (!status.ok()) {
         // implies that the other node is not up
-        std::cout << "not able to contant other node\n";
+        std::cout << "not able to contact other node\n";
         if (!retry_count) {
             init_connection_with_other_node();
             return update_state_to_latest(1);
@@ -566,6 +625,8 @@ int main(int argc, char** argv) {
     sem_init(&sem_queue, 0, 0);
     sem_init(&mutex_queue, 0, 1);
     sem_init(&mutex_election, 0, 1);
+    sem_init(&file_tmp_lock, 0, 1);
+    sem_init(&file_tmp2_lock, 0, 0);
     sem_init(&sem_consensus, 0, 0);
     sem_init(&mutex_pending_grpc_write, 0, 1);
 
