@@ -44,6 +44,7 @@ using wifs::WriteReq;
 using wifs::WriteRes;
 
 using primarybackup::HeartBeat;
+using primarybackup::SyncReq;
 using primarybackup::InitReq;
 using primarybackup::InitRes;
 using primarybackup::PrimaryBackup;
@@ -139,11 +140,13 @@ void start_transition_log(const WriteRequest write_request) {
 }
 
 void local_write(void) {
-    const auto path = getServerPath(std::string("doesn't matter"), server_id);
-    std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
-
+    const auto path = getServerPath(server_id);
     const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
     if (fd == -1) std::cout << "open failed " << strerror(errno) << "\n";
+
+    const auto lastaddr = getLastAddressPath(server_id);
+    const int fd_lastaddr = ::open(lastaddr.c_str(), O_TRUNC| O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
+    if (fd_lastaddr == -1) std::cout << "fd_lastaddr open failed " << strerror(errno) << "\n";
 
     while (true) {
         sem_wait(&sem_queue);
@@ -152,8 +155,16 @@ void local_write(void) {
 
         const WriteReq* request = node->req;
 	    if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) while(true);
-        
+
+        std::cout << "WIFS SERVER last address path: " << lastaddr << std::endl;
+	const auto char_addr = std::to_string(request->address()).c_str();
+	std::cout << "last address writing to file: "<< char_addr << std::endl;
+        int rc_addr = pwrite(fd_lastaddr, char_addr, MAX_PATH_LENGTH, 0);
+        if (rc_addr == -1) std::cout << "last address write failed " << strerror(errno) << "\n";
+
+        std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
         int rc = pwrite(fd, (void*)request->buf().c_str(), BLOCK_SIZE, request->address());
+
         if (rc == -1) std::cout << "write failed " << strerror(errno) << "\n";
         node->promise_obj.set_value(rc);
 
@@ -264,7 +275,22 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
         return Status::OK;
     }
 
-    Status Sync(ServerContext* context, const HeartBeat* request, ServerWriter<WriteRequest>* writer) {
+    Status Sync(ServerContext* context, const SyncReq* request, ServerWriter<WriteRequest>* writer) {
+        //replay last write that happened when the server went down
+        if (request->last_address() != -1) {
+            other_node_syncing = true;
+            WriteRequest write_request;
+            char data[BLOCK_SIZE];
+	        const auto path = getServerPath(server_id);
+            const int fd = ::open(path.c_str(), O_RDONLY);
+            pread(fd, data, BLOCK_SIZE, request->last_address());
+            std::string buffer(data);
+	    std::cout << "Last address overwrite: " <<std::endl;
+            write_request.set_blk_address(request->last_address());
+            write_request.set_buffer(data);
+            writer->Write(write_request);
+	    }   
+
         int pending_writes = 0;
         sem_getvalue(&sem_log_queue, &pending_writes);
         if (pending_writes) other_node_syncing = true;
@@ -367,7 +393,7 @@ class WifsServiceImplementation final : public WIFS::Service {
             return Status::OK;
         }
 
-        const auto path = getServerPath(std::to_string(request->address()), server_id);
+        const auto path = getServerPath(server_id);
         std::cout << "WIFS server PATH READ: " << path << std::endl;
 
         const int fd = ::open(path.c_str(), O_RDONLY);
@@ -501,15 +527,34 @@ void check_heartbeat() {
     }
 }
 
+int get_last_addr(){
+    //check if lastadd exists
+    const auto lastaddr = getLastAddressPath(server_id);
+    const int fd_lastaddr = ::open(lastaddr.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
+    if (fd_lastaddr == -1) std::cout << "fd_lastaddr open failed " << strerror(errno) << "\n";
+
+    char last_address[MAX_PATH_LENGTH];
+    pread(fd_lastaddr, last_address, MAX_PATH_LENGTH, 0);
+    int l_addr = -1;
+    if (strcmp(last_address,"")!=0){
+        l_addr = atoi(last_address);
+        pwrite(fd_lastaddr, "", MAX_PATH_LENGTH, 0);
+    }
+    return l_addr;
+}
+
 void update_state_to_latest(int retry_count) {
-    HeartBeat request;
+    SyncReq request;
     ClientContext context;
+
+    request.set_last_address(get_last_addr());
+
     std::unique_ptr<ClientReader<WriteRequest> > reader(client_stub_->Sync(&context, request));
     WriteRequest reply;
     while (reader->Read(&reply)) {
         // don't use the write queue since that will add an overhead of populating a promise obj each time.
         // sync write should be fast, and not like write in normal operation
-        const auto path = getServerPath(std::to_string(reply.blk_address()), server_id);
+        const auto path = getServerPath(server_id);
         std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
 
         const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
@@ -534,7 +579,8 @@ void update_state_to_latest(int retry_count) {
     // now check if there are any pending log entries that the other node received when we were busy doing the above sync.
     HeartBeat pending_writes;
     ClientContext new_context;
-    client_stub_->CheckSync(&new_context, request, &pending_writes);
+    HeartBeat checksyncreq;
+    client_stub_->CheckSync(&new_context, checksyncreq, &pending_writes);
     if (!status.ok() || pending_writes.state() == primarybackup::HeartBeat_State_READY) {
         // implies that the other node crashed in between when status not okay
         server_state = "READY";
