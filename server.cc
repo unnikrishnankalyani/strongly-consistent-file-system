@@ -139,6 +139,12 @@ void start_transition_log(const WriteRequest write_request) {
 }
 
 void local_write(void) {
+    const auto path = getServerPath(std::string("doesn't matter"), server_id);
+    std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
+
+    const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
+    if (fd == -1) std::cout << "open failed " << strerror(errno) << "\n";
+
     while (true) {
         sem_wait(&sem_queue);
         Node* node = write_queue.front();
@@ -146,13 +152,7 @@ void local_write(void) {
 
         const WriteReq* request = node->req;
 	    if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) while(true);
-
-        const auto path = getServerPath(std::to_string(request->address()), server_id);
-        std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
-
-        const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
-        if (fd == -1) std::cout << "open failed " << strerror(errno) << "\n";
-
+        
         int rc = pwrite(fd, (void*)request->buf().c_str(), BLOCK_SIZE, request->address());
         if (rc == -1) std::cout << "write failed " << strerror(errno) << "\n";
         node->promise_obj.set_value(rc);
