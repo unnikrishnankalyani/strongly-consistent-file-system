@@ -38,9 +38,6 @@ int do_read(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
     read_index = single_server ? primary_index : rand_index % 2;
     //std::cout<<"reading from "<<servers[read_index]<<std::endl;
     
-    // Start measuring time
-    struct timeval begin, end;
-    gettimeofday(&begin, 0);
     if(options.wifsclient[0] == NULL or options.wifsclient[1] == NULL){
         std::cout << "Null value for WIFSclient. Exiting" <<std::endl;
         return -1;
@@ -48,22 +45,13 @@ int do_read(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
 
     int rc = options.wifsclient[read_index]->wifs_READ(address, buf, crash_mode);
 
-    // Stop measuring time and calculate the elapsed time
-    gettimeofday(&end, 0);
-    long seconds = end.tv_sec - begin.tv_sec;
-    long microseconds = end.tv_usec - begin.tv_usec;
-    double elapsed = seconds + microseconds*1e-6;
-
-    //std::cout << elapsed << std::endl;
-
     //std::cout << "Read Return code: " << rc << std::endl;
     // call goes through, just return
     if (!rc) return 0;
 
-    if (rc < 0) {  // call failed, try other node.
+    if (rc < 0) { 
         switch_primary(read_index);
         single_server = 1;
-        //std::cout << "Read Call FAILED. Trying other node" << primary_server << std::endl;
         return do_read(address, buf, wifs::ReadReq_Crash_NO_CRASH);
     }
 
@@ -109,6 +97,23 @@ int do_read(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
     return -1;  // this should never happen.
 }
 
+int do_read_wrapper(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
+    // Start measuring time
+    struct timeval begin, end;
+    gettimeofday(&begin, 0);
+
+    int rc = do_read(address, buf, crash_mode);
+    // Stop measuring time and calculate the elapsed time
+    gettimeofday(&end, 0);
+    long seconds = end.tv_sec - begin.tv_sec;
+    long microseconds = end.tv_usec - begin.tv_usec;
+    double elapsed = seconds + microseconds*1e-6;
+    
+    // printf("%lf\n", elapsed);
+    
+    return rc;
+}
+
 int do_write(int address, char* buf, wifs::WriteReq_Crash crash_mode) {
     if (options.wifsclient[0] == NULL) assign_primary();
     struct timeval begin, end;
@@ -151,4 +156,23 @@ int do_write(int address, char* buf, wifs::WriteReq_Crash crash_mode) {
     
     return -1;
 }
+
+int do_write_wrapper(int address, char* buf, wifs::WriteReq_Crash crash_mode) {
+    // Start measuring time
+    struct timeval begin, end;
+    gettimeofday(&begin, 0);
+
+    int rc = do_write(address, buf, crash_mode);
+    
+    // Stop measuring time and calculate the elapsed time
+    gettimeofday(&end, 0);
+    long seconds = end.tv_sec - begin.tv_sec;
+    long microseconds = end.tv_usec - begin.tv_usec;
+    double elapsed = seconds + microseconds*1e-6;
+    
+    // printf("%lf\n", elapsed);
+    
+    return rc;
+}
+
 }
