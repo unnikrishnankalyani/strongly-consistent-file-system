@@ -141,14 +141,10 @@ void start_transition_log(const WriteRequest write_request) {
 
 void local_write(void) {
     const auto path = getServerPath(server_id);
-    std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
-
     const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
     if (fd == -1) std::cout << "open failed " << strerror(errno) << "\n";
 
     const auto lastaddr = getLastAddressPath(server_id);
-    std::cout << "WIFS SERVER last address path: " << lastaddr << std::endl;
-
     const int fd_lastaddr = ::open(lastaddr.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
     if (fd_lastaddr == -1) std::cout << "fd_lastaddr open failed " << strerror(errno) << "\n";
 
@@ -160,10 +156,12 @@ void local_write(void) {
         const WriteReq* request = node->req;
 	    if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) while(true);
 
+        std::cout << "WIFS SERVER last address path: " << lastaddr << std::endl;
         lseek(fd_lastaddr,0,SEEK_SET);
         int rc_addr = write(fd_lastaddr, std::to_string(request->address()).c_str(), MAX_PATH_LENGTH);
         if (rc_addr == -1) std::cout << "last address write failed " << strerror(errno) << "\n";
 
+        std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
         int rc = pwrite(fd, (void*)request->buf().c_str(), BLOCK_SIZE, request->address());
 
         if (rc == -1) std::cout << "write failed " << strerror(errno) << "\n";
