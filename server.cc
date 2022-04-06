@@ -145,7 +145,7 @@ void local_write(void) {
     if (fd == -1) std::cout << "open failed " << strerror(errno) << "\n";
 
     const auto lastaddr = getLastAddressPath(server_id);
-    const int fd_lastaddr = ::open(lastaddr.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
+    const int fd_lastaddr = ::open(lastaddr.c_str(), O_TRUNC| O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
     if (fd_lastaddr == -1) std::cout << "fd_lastaddr open failed " << strerror(errno) << "\n";
 
     while (true) {
@@ -157,7 +157,9 @@ void local_write(void) {
 	    if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) while(true);
 
         std::cout << "WIFS SERVER last address path: " << lastaddr << std::endl;
-        int rc_addr = pwrite(fd_lastaddr, std::to_string(request->address()).c_str(), MAX_PATH_LENGTH, 0);
+	const auto char_addr = std::to_string(request->address()).c_str();
+	std::cout << "last address writing to file: "<< char_addr << std::endl;
+        int rc_addr = pwrite(fd_lastaddr, char_addr, MAX_PATH_LENGTH, 0);
         if (rc_addr == -1) std::cout << "last address write failed " << strerror(errno) << "\n";
 
         std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
