@@ -276,13 +276,14 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
     Status Sync(ServerContext* context, const SyncReq* request, ServerWriter<WriteRequest>* writer) {
         //replay last write that happened when the server went down
         if (request->last_address() != -1) {
-            other_node_syncing = true
+            other_node_syncing = true;
             WriteRequest write_request;
             char data[BLOCK_SIZE];
 	        const auto path = getServerPath(server_id);
             const int fd = ::open(path.c_str(), O_RDONLY);
             pread(fd, data, BLOCK_SIZE, request->last_address());
             std::string buffer(data);
+	    std::cout << "Last address overwrite: " <<std::endl;
             write_request.set_blk_address(request->last_address());
             write_request.set_buffer(data);
             writer->Write(write_request);
