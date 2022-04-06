@@ -57,7 +57,9 @@ class Client():
         self.address = get_offset(address)
         self.read_buf = get_read_buffer(4096)
         self.libclient.do_read(self.address, self.read_buf, crash_mode)
+        self.read_bytes = self.read_buf.value
         self.read_buf = self.read_buf.value.decode("utf-8")
+        return self.read_bytes
     
     def write(self, address, buffer,crash_mode=0):
         address = get_offset(address)
