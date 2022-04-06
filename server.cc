@@ -377,10 +377,9 @@ class WifsServiceImplementation final : public WIFS::Service {
             std::cout << "Returning OK" <<std::endl;
             return Status::OK;
         }
-
-        std::string buffer(BLOCK_SIZE, ' ');
-        std::ifstream file_inp(path);
-        buffer.assign((std::istreambuf_iterator<char>(file_inp)), std::istreambuf_iterator<char>());
+        char data[BLOCK_SIZE];
+        pread(fd, data, BLOCK_SIZE, request->address());
+        std::string buffer(data);
         reply->set_status(other_node_down ? wifs::ReadRes_Status_SOLO : wifs::ReadRes_Status_PASS);
         reply->set_buf(buffer);
         std::cout << "Returning OK" <<std::endl;
