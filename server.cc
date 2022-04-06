@@ -157,8 +157,7 @@ void local_write(void) {
 	    if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) while(true);
 
         std::cout << "WIFS SERVER last address path: " << lastaddr << std::endl;
-        lseek(fd_lastaddr,0,SEEK_SET);
-        int rc_addr = write(fd_lastaddr, std::to_string(request->address()).c_str(), MAX_PATH_LENGTH);
+        int rc_addr = pwrite(fd_lastaddr, std::to_string(request->address()).c_str(), MAX_PATH_LENGTH, 0);
         if (rc_addr == -1) std::cout << "last address write failed " << strerror(errno) << "\n";
 
         std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
@@ -277,16 +276,17 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
     Status Sync(ServerContext* context, const SyncReq* request, ServerWriter<WriteRequest>* writer) {
         //replay last write that happened when the server went down
         if (request->last_address() != -1) {
+            other_node_syncing = true
             WriteRequest write_request;
             char data[BLOCK_SIZE];
-	    const auto path = getServerPath(server_id);
+	        const auto path = getServerPath(server_id);
             const int fd = ::open(path.c_str(), O_RDONLY);
             pread(fd, data, BLOCK_SIZE, request->last_address());
             std::string buffer(data);
             write_request.set_blk_address(request->last_address());
             write_request.set_buffer(data);
             writer->Write(write_request);
-	}
+	    }   
 
         int pending_writes = 0;
         sem_getvalue(&sem_log_queue, &pending_writes);
@@ -535,7 +535,7 @@ int get_last_addr(){
     int l_addr = -1;
     if (strcmp(last_address,"")!=0){
         l_addr = atoi(last_address);
-        //need to write blank into last_address after retrieving??
+        pwrite(fd_lastaddr, "", MAX_PATH_LENGTH, 0);
     }
     return l_addr;
 }
