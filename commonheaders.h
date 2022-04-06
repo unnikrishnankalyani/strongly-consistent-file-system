@@ -42,6 +42,6 @@ std::string getServerPath(int machine_id) {
     return getServerDir(machine_id) + "/bs" ;//"/file_" + address;
 }
 
-std::string getLastAddressPath(machine_id) {
+std::string getLastAddressPath(int machine_id) {
     return getServerDir(machine_id) + "/lastaddr" ;//"/file_" + address;
 }

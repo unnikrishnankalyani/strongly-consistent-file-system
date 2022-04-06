@@ -161,7 +161,7 @@ void local_write(void) {
 	    if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) while(true);
 
         lseek(fd_lastaddr,0,SEEK_SET);
-        int rc_addr = write(fd_lastaddr, request->address().c_str(), MAX_PATH_LENGTH);
+        int rc_addr = write(fd_lastaddr, std::to_string(request->address()).c_str(), MAX_PATH_LENGTH);
         if (rc_addr == -1) std::cout << "last address write failed " << strerror(errno) << "\n";
 
         int rc = pwrite(fd, (void*)request->buf().c_str(), BLOCK_SIZE, request->address());
@@ -280,10 +280,15 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
         //replay last write that happened when the server went down
         if (request->last_address() != -1) {
             WriteRequest write_request;
-            write_request.set_blk_address(request->address());
-            write_request.set_buffer(BLOCK_SIZE);
+            char data[BLOCK_SIZE];
+	    const auto path = getServerPath(server_id);
+            const int fd = ::open(path.c_str(), O_RDONLY);
+            pread(fd, data, BLOCK_SIZE, request->last_address());
+            std::string buffer(data);
+            write_request.set_blk_address(request->last_address());
+            write_request.set_buffer(data);
             writer->Write(write_request);
-        }
+	}
 
         int pending_writes = 0;
         sem_getvalue(&sem_log_queue, &pending_writes);
@@ -523,6 +528,7 @@ void check_heartbeat() {
 
 int get_last_addr(){
     //check if lastadd exists
+    const auto lastaddr = getLastAddressPath(server_id);
     const int fd_lastaddr = ::open(lastaddr.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
     if (fd_lastaddr == -1) std::cout << "fd_lastaddr open failed " << strerror(errno) << "\n";
 
@@ -540,7 +546,7 @@ void update_state_to_latest(int retry_count) {
     SyncReq request;
     ClientContext context;
 
-    request.set_last_address = get_last_addr();
+    request.set_last_address(get_last_addr());
 
     std::unique_ptr<ClientReader<WriteRequest> > reader(client_stub_->Sync(&context, request));
     WriteRequest reply;
@@ -572,7 +578,8 @@ void update_state_to_latest(int retry_count) {
     // now check if there are any pending log entries that the other node received when we were busy doing the above sync.
     HeartBeat pending_writes;
     ClientContext new_context;
-    client_stub_->CheckSync(&new_context, request, &pending_writes);
+    HeartBeat checksyncreq;
+    client_stub_->CheckSync(&new_context, checksyncreq, &pending_writes);
     if (!status.ok() || pending_writes.state() == primarybackup::HeartBeat_State_READY) {
         // implies that the other node crashed in between when status not okay
         server_state = "READY";
