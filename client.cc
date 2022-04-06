@@ -85,7 +85,7 @@ int do_read(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
     // read couldn't be serviced by this node, probably blocking grpc update operation
     // don't switch primary.
     rc = options.wifsclient[1 - read_index]->wifs_READ(address, buf, crash_mode);
-    std::cout << "Read Return code: " << rc << std::endl;
+    //std::cout << "Read Return code: " << rc << std::endl;
 
     if (!rc) return 0;
 

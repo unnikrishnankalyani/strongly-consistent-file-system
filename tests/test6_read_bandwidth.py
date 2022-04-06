@@ -50,7 +50,7 @@ def thread_client_write(i):
 
 
 def thread_client_read(i):
-    client[i].read(4096)
+    client[i].read(4096*i)
 
 
 # client[0].init()
