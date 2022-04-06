@@ -41,7 +41,10 @@ int do_read(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
     int rc = options.wifsclient[read_index]->wifs_READ(address, buf, crash_mode);
     std::cout << "Read Return code: " << rc << std::endl;
     // call goes through, just return
-    if (!rc) return 0;
+    if (!rc) {
+        std::cout<<"first char read "<<buf[0]<<"\n";
+        return 0;
+    }
 
     if (rc < 0) {  // call failed, try other node.
         switch_primary(read_index);
@@ -69,6 +72,10 @@ int do_read(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
     // don't swtich primary.
     rc = options.wifsclient[1 - read_index]->wifs_READ(address, buf, crash_mode);
     std::cout << "Read Return code: " << rc << std::endl;
+    if (!rc) {
+        std::cout<<"first char read "<<buf[0]<<"\n";
+        return 0;
+    }
 
     if (rc < 0) {
         switch_primary(read_index);
