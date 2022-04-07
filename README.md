@@ -1,4 +1,4 @@
-# Strongly Consistent Redundancy-based Advanced Block Store (SCRABS)
+# Strongly Consistent Redundancy-based Utilitarian Block Store (SCRUBS)
 
 This is an implementation of a distributed highly-available file system. All server logic is present in `server.cc` while the client-side library is defined in `client.cc` and `WifsClient.h`. 
 
