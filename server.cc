@@ -236,7 +236,10 @@ int append_write_request(const WriteReq* request) {
     }
 
     // now crash here since your remote call has gone through, but you didn't write locally [because of the infinite while]
-    if(request->crash_mode() ==  wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) killserver();
+    if(request->crash_mode() ==  wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) {
+        printf("server getting killed before local write\n");
+        killserver();
+    }
     
     sem_post(&mutex_queue);
 
