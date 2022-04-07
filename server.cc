@@ -142,11 +142,11 @@ void start_transition_log(const WriteRequest write_request) {
 void local_write(void) {
     const auto path = getServerPath(server_id);
     const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
-    if (fd == -1) std::cout << "open failed " << strerror(errno) << "\n";
+    // if (fd == -1) std::cout << "open failed " << strerror(errno) << "\n";
 
     const auto lastaddr = getLastAddressPath(server_id);
     const int fd_lastaddr = ::open(lastaddr.c_str(), O_TRUNC| O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
-    if (fd_lastaddr == -1) std::cout << "fd_lastaddr open failed " << strerror(errno) << "\n";
+    // if (fd_lastaddr == -1) std::cout << "fd_lastaddr open failed " << strerror(errno) << "\n";
 
     while (true) {
         sem_wait(&sem_queue);
@@ -156,16 +156,16 @@ void local_write(void) {
         const WriteReq* request = node->req;
 	    if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) while(true);
 
-        std::cout << "WIFS SERVER last address path: " << lastaddr << std::endl;
+        // std::cout << "WIFS SERVER last address path: " << lastaddr << std::endl;
 	const auto char_addr = std::to_string(request->address()).c_str();
-	std::cout << "last address writing to file: "<< char_addr << std::endl;
+	// std::cout << "last address writing to file: "<< char_addr << std::endl;
         int rc_addr = pwrite(fd_lastaddr, char_addr, MAX_PATH_LENGTH, 0);
-        if (rc_addr == -1) std::cout << "last address write failed " << strerror(errno) << "\n";
+        // if (rc_addr == -1) std::cout << "last address write failed " << strerror(errno) << "\n";
 
-        std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
+        std::cout << "write to address " << request->address() << std::endl;
         int rc = pwrite(fd, (void*)request->buf().c_str(), BLOCK_SIZE, request->address());
 
-        if (rc == -1) std::cout << "write failed " << strerror(errno) << "\n";
+        // if (rc == -1) std::cout << "write failed " << strerror(errno) << "\n";
         node->promise_obj.set_value(rc);
 
         if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_AFTER_LOCAL_WRITE_BEFORE_REMOTE) killserver();
@@ -285,7 +285,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
             const int fd = ::open(path.c_str(), O_RDONLY);
             pread(fd, data, BLOCK_SIZE, request->last_address());
             std::string buffer(data);
-	    std::cout << "Last address overwrite: " <<std::endl;
+	        std::cout << "Last address overwrite: " << request->last_address() <<std::endl;
             write_request.set_blk_address(request->last_address());
             write_request.set_buffer(data);
             writer->Write(write_request);
@@ -315,7 +315,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
 
     Status Init(ServerContext* context, const InitReq* request, InitRes* reply) {
         if (sem_trywait(&mutex_election) == EAGAIN) {
-            std::cout << "CAN't ACQUIRE mutex lock\n";
+            // std::cout << "CAN't ACQUIRE mutex lock\n";
             // can't handle election_state here coz mutex already busy, I think election_state will already be CANDIDATE here since the mutex is busy
             // set_election_state_value("CANDIDATE");
             reply->set_status(0);
@@ -329,7 +329,7 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
         std::cout << "Election RPC Received!" << std::endl;
         if (request->role() == primarybackup::InitReq_Role_LEADER) {
             if (election_state == "INIT" or election_state == "BACKUP") {
-                std::cout << "Other candidate accepted as PRIMARY. This server BACKUP" << std::endl;
+                std::cout << "Other candidate accepted as PRIMARY. This server is now a BACKUP" << std::endl;
                 reply->set_role(primarybackup::InitRes_Role_BACKUP);
                 reply->set_status(1);
                 election_state = "BACKUP";
@@ -381,7 +381,7 @@ class WifsServiceImplementation final : public WIFS::Service {
 
         std::string local_election_state = get_election_state_value();
         reply->set_primary_ip(local_election_state == "PRIMARY" ? cur_node_wifs_address : other_node_wifs_address);
-        std::cout << "Primary IP is " << reply->primary_ip() << std::endl;
+        // std::cout << "Primary IP is " << reply->primary_ip() << std::endl;
 
         if (is_grpc_write_pending) {
             // if the other node is down, then the client library should make a thrird call to the
@@ -394,7 +394,7 @@ class WifsServiceImplementation final : public WIFS::Service {
         }
 
         const auto path = getServerPath(server_id);
-        std::cout << "WIFS server PATH READ: " << path << std::endl;
+        std::cout << "read request at address " << request->address() << std::endl;
 
         const int fd = ::open(path.c_str(), O_RDONLY);
         if (fd == -1) {
@@ -417,7 +417,7 @@ void run_wifs_server() {
     wifsServer.AddListeningPort(cur_node_wifs_address, grpc::InsecureServerCredentials());
     wifsServer.RegisterService(&service);
     std::unique_ptr<Server> server(wifsServer.BuildAndStart());
-    std::cout << "WIFS Server listening on port: " << cur_node_wifs_address << std::endl;
+    // std::cout << "WIFS Server listening on port: " << cur_node_wifs_address << std::endl;
 
     primary = get_election_state_value() == "PRIMARY" ? cur_node_wifs_address : other_node_wifs_address;
 
@@ -431,7 +431,7 @@ void run_pb_server() {
     pbServer.RegisterService(&service);
     std::unique_ptr<Server> server(pbServer.BuildAndStart());
     
-    std::cout << "PB Server listening on port: " << this_node_address << std::endl;
+    // std::cout << "PB Server listening on port: " << this_node_address << std::endl;
     sem_post(&sem_consensus);
 
     server->Wait();
@@ -448,9 +448,9 @@ void release_consensus_lock_and_sem() {
 }
 
 void consensus() {
-    std::cout << "Election begins. Waiting for mutex release" << std::endl;
+    // std::cout << "Election begins. Waiting for mutex release" << std::endl;
     acquire_consensus_lock_and_sem();
-    std::cout << "Start Election." << std::endl;
+    // std::cout << "Start Election." << std::endl;
     ClientContext context;
     InitReq request;
     InitRes reply;
@@ -461,7 +461,7 @@ void consensus() {
     if (election_state == "PRIMARY") return release_consensus_lock_and_sem();
 
     // implies that the local election state is either INIT or CANDIDATE
-    std::cout << "No heartbeat received. Server is a candidate" << std::endl;
+    // std::cout << "No heartbeat received. Server is a candidate" << std::endl;
     election_state = "CANDIDATE";
     init_connection_with_other_node();
     request.set_role(primarybackup::InitReq_Role_LEADER);
@@ -469,13 +469,13 @@ void consensus() {
     // other server not functioning.
     if (!status.ok()) {
         election_state = "PRIMARY";
-        std::cout << "This server is a primary!" << std::endl;
+        // std::cout << "This server is a primary!" << std::endl;
         return release_consensus_lock_and_sem();
     }
 
-    std::cout << "Status is OK" << std::endl;
+    // std::cout << "Status is OK" << std::endl;
     if (reply.status() == 0) {
-        std::cout << "Both servers are candidates simultaneously! Retrying Election" << std::endl;
+        // std::cout << "Both servers are candidates simultaneously! Retrying Election" << std::endl;
         election_state = "INIT";
 	release_consensus_lock_and_sem();
         int randTime = 10000 + rand() % 100000;
@@ -499,13 +499,14 @@ void consensus() {
 }
 
 void check_heartbeat() {
-    std::cout << "Heartbeats" << std::endl;
+    // std::cout << "Heartbeats" << std::endl;
     HeartBeat request;
     std::string local_election_state;
     while (true) {
         local_election_state = get_election_state_value();
         if (local_election_state == "PRIMARY") {
-            std::cout << "I'm primary, I won't do heartbeats. There's no way I'm demoted unless I restart in which case this is again called\n";
+            // std::cout << "I'm primary, I won't do heartbeats. There's no way I'm demoted unless I restart in which case this is again called\n";
+             std::cout << "I'm primary now\n";
             return;
         }
 
@@ -522,24 +523,27 @@ void check_heartbeat() {
             continue;
         }
 
-        std::cout << "Primary alive " << std::endl;
-        std::this_thread::sleep_for(std::chrono::milliseconds(2 * HEARTBEAT_TIMER));
+        printf(".");
+        fflush(stdout);
+        std::this_thread::sleep_for(std::chrono::milliseconds(HEARTBEAT_TIMER));
     }
 }
 
 int get_last_addr(){
     //check if lastadd exists
     const auto lastaddr = getLastAddressPath(server_id);
-    const int fd_lastaddr = ::open(lastaddr.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
-    if (fd_lastaddr == -1) std::cout << "fd_lastaddr open failed " << strerror(errno) << "\n";
+    const int fd_lastaddr = ::open(lastaddr.c_str(), O_RDWR, S_IRWXU | S_IRWXG);
+    if (fd_lastaddr == -1) return -1;
 
     char last_address[MAX_PATH_LENGTH];
     pread(fd_lastaddr, last_address, MAX_PATH_LENGTH, 0);
     int l_addr = -1;
-    if (strcmp(last_address,"")!=0){
+
+    if (strcmp(last_address,"") != 0) {
         l_addr = atoi(last_address);
         pwrite(fd_lastaddr, "", MAX_PATH_LENGTH, 0);
     }
+    
     return l_addr;
 }
 
@@ -555,19 +559,19 @@ void update_state_to_latest(int retry_count) {
         // don't use the write queue since that will add an overhead of populating a promise obj each time.
         // sync write should be fast, and not like write in normal operation
         const auto path = getServerPath(server_id);
-        std::cout << "WIFS server PATH WRITE TO: " << path << std::endl;
+        std::cout << "write to address sync write " << reply.blk_address() << std::endl;
 
         const int fd = ::open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
-        if (fd == -1) std::cout << "sync open failed " << strerror(errno) << "\n";
+        // if (fd == -1) std::cout << "sync open failed " << strerror(errno) << "\n";
 
         int rc = pwrite(fd, (void*)reply.buffer().c_str(), BLOCK_SIZE, reply.blk_address());
-        if (rc == -1) std::cout << "sync write failed " << strerror(errno) << "\n";
+        // if (rc == -1) std::cout << "sync write failed " << strerror(errno) << "\n";
     }
 
     Status status = reader->Finish();
     if (!status.ok()) {
         // implies that the other node is not up
-        std::cout << "not able to contant other node\n";
+        // std::cout << "not able to contant other node\n";
         if (!retry_count) {
             init_connection_with_other_node();
             return update_state_to_latest(1);
@@ -616,15 +620,15 @@ int main(int argc, char** argv) {
     sem_init(&mutex_pending_grpc_write, 0, 1);
 
     if (argc < 2) {
-        std::cout << "Machine id not given\n";
+        // std::cout << "Machine id not given\n";
         exit(1);
     }
 
     server_id = atoi(argv[1]);
-    std::cout << "got machine id as " << server_id << "\n";
+    // std::cout << "got machine id as " << server_id << "\n";
 
     init_all_node_addresses();
-    std::cout << "got other node's address as " << other_node_address << "\n";
+    // std::cout << "got other node's address as " << other_node_address << "\n";
 
     init_connection_with_other_node();
 
@@ -634,7 +638,7 @@ int main(int argc, char** argv) {
     std::thread internal_server(run_pb_server);
     std::thread hb_thread(check_heartbeat);
     consensus();
-    std::cout << "consensus returned\n";
+    // std::cout << "consensus returned\n";
 
     // Create server path if it doesn't exist
     DIR* dir = opendir(getServerDir(server_id).c_str());

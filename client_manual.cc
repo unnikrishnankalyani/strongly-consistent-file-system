@@ -7,28 +7,49 @@
 #include "client.cc"
 #include "wifs.grpc.pb.h"
 
-void tester() {
+void write_read(char a, char b) {
     char buf[BLOCK_SIZE + 1];
-    for (int i = 0; i < BLOCK_SIZE; i++) buf[i] = 'c';
+    for (int i = 0; i < BLOCK_SIZE; i++) buf[i] = a;
     int rc = do_write(0, buf, wifs::WriteReq_Crash_NO_CRASH);
     if (rc == -1) std::cout << "WRITE FAIL\n";
 
+    for (int i = 0; i < BLOCK_SIZE; i++) buf[i] = b;
+    rc = do_write(1, buf, wifs::WriteReq_Crash_NO_CRASH);
+    if (rc == -1) std::cout << "WRITE FAIL\n";
+
     buf[0] = '\0';
-    rc = do_read(0, buf, wifs::ReadReq_Crash_NODE_CRASH_READ);
+    rc = do_read(0, buf, wifs::ReadReq_Crash_NO_CRASH);
     if (rc == -1) std::cout << "READ FAIL\n";
 
     buf[BLOCK_SIZE] = '\0';
     printf("read first char - %c\n", buf[0]);
 
-    // do_read(0, buf, wifs::ReadReq_Crash_NO_CRASH);
-    // if (rc == -1) std::cout << "READ FAIL\n";
-    // do_read(0, buf, wifs::ReadReq_Crash_NO_CRASH);
-    // if (rc == -1) std::cout << "READ FAIL\n";
-    // do_read(0, buf, wifs::ReadReq_Crash_NO_CRASH);
-    // if (rc == -1) std::cout << "READ FAIL\n";
+    rc = do_read(1, buf, wifs::ReadReq_Crash_NO_CRASH);
+    if (rc == -1) std::cout << "READ FAIL\n";
+
+    buf[BLOCK_SIZE] = '\0';
+    printf("read first char - %c\n", buf[0]);
+}
+
+void just_read() {
+    char buf[BLOCK_SIZE + 1];
+    buf[0] = '\0';
+    int rc = do_read(0, buf, wifs::ReadReq_Crash_NO_CRASH);
+    if (rc == -1) std::cout << "READ FAIL\n";
+
+    buf[BLOCK_SIZE] = '\0';
+    printf("read first char - %c\n", buf[0]);
+
+    rc = do_read(1, buf, wifs::ReadReq_Crash_NO_CRASH);
+    if (rc == -1) std::cout << "READ FAIL\n";
+
+    buf[BLOCK_SIZE] = '\0';
+    printf("read first char - %c\n", buf[0]);
 }
 
 int main(int argc, char* argv[]) {
-    tester();
+    if(!strcmp(argv[1], "1")) write_read('a', 'b');
+    else if(!strcmp(argv[1], "2")) write_read('c', 'd');
+    else just_read();
     return 0;
 }
