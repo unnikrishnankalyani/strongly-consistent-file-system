@@ -168,7 +168,10 @@ void local_write(void) {
         // if (rc == -1) std::cout << "write failed " << strerror(errno) << "\n";
         node->promise_obj.set_value(rc);
 
-        if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_AFTER_LOCAL_WRITE_BEFORE_REMOTE) killserver();
+        if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_AFTER_LOCAL_WRITE_BEFORE_REMOTE) {
+            std::cout<<"killing primary after local write, didn't send to remote\n";
+            killserver();
+        }
     }
     return;
 }
@@ -237,7 +240,6 @@ int append_write_request(const WriteReq* request) {
 
     // now crash here since your remote call has gone through, but you didn't write locally [because of the infinite while]
     if(request->crash_mode() ==  wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE) {
-        printf("server getting killed before local write\n");
         killserver();
     }
     

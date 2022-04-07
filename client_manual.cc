@@ -10,11 +10,12 @@
 void write_crash(char a, char b) {
     char buf[BLOCK_SIZE + 1];
     for (int i = 0; i < BLOCK_SIZE; i++) buf[i] = a;
-    int rc = do_write(0, buf, wifs::WriteReq_Crash_PRIMARY_CRASH_BEFORE_LOCAL_WRITE_AFTER_REMOTE);
-    // if (rc == -1) std::cout << "WRITE FAIL\n";
+    int rc = do_write(0, buf, wifs::WriteReq_Crash_NO_CRASH);
+    std::cout<<"wrote "<<a<<"\n";
 
-    // for (int i = 0; i < BLOCK_SIZE; i++) buf[i] = b;
-    // rc = do_write(1, buf, wifs::WriteReq_Crash_NO_CRASH);
+    std::cout<<"tring to write "<<b<<"\n";
+    for (int i = 0; i < BLOCK_SIZE; i++) buf[i] = b;
+    rc = do_write(0, buf, wifs::WriteReq_Crash_PRIMARY_CRASH_AFTER_LOCAL_WRITE_BEFORE_REMOTE);
     // if (rc == -1) std::cout << "WRITE FAIL\n";
 
     // buf[0] = '\0';
