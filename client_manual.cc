@@ -10,15 +10,12 @@
 void tester() {
     char buf[BLOCK_SIZE + 1];
     for (int i = 0; i < BLOCK_SIZE; i++) buf[i] = 'c';
-    int rc = do_write(0, buf, wifs::WriteReq_Crash_NO_CRASH);
+    int rc = do_write_wrapper(0, buf, wifs::WriteReq_Crash_NO_CRASH);
     if (rc == -1) std::cout << "WRITE FAIL\n";
 
     buf[0] = '\0';
-    rc = do_read(0, buf, wifs::ReadReq_Crash_NO_CRASH);
+    rc = do_read_wrapper(0, buf, wifs::ReadReq_Crash_NO_CRASH);
     if (rc == -1) std::cout << "READ FAIL\n";
-
-    buf[BLOCK_SIZE] = '\0';
-    printf("read first char - %c\n", buf[0]);
 
     // do_read(0, buf, wifs::ReadReq_Crash_NO_CRASH);
     // if (rc == -1) std::cout << "READ FAIL\n";
