@@ -56,7 +56,7 @@ int do_read(int address, char* buf, wifs::ReadReq_Crash crash_mode) {
     }
 
     if (rc == 1) {
-        switch_primary(read_index);
+        if(read_index == primary_index) switch_primary(read_index);
         single_server = 0;
         return 0;
     }
