@@ -10,20 +10,16 @@
 void write_crash(char a, char b) {
     char buf[BLOCK_SIZE + 1];
     for (int i = 0; i < BLOCK_SIZE; i++) buf[i] = a;
-    int rc = do_write(0, buf, wifs::WriteReq_Crash_NO_CRASH);
-    std::cout<<"wrote "<<a<<"\n";
-
-    std::cout<<"tring to write "<<b<<"\n";
-    for (int i = 0; i < BLOCK_SIZE; i++) buf[i] = b;
-    rc = do_write(0, buf, wifs::WriteReq_Crash_PRIMARY_CRASH_AFTER_LOCAL_WRITE_BEFORE_REMOTE);
+    int rc = do_write(0, buf, wifs::WriteReq_Crash_BACKUP_CRASH_BEFORE_WRITE);
+    
     // if (rc == -1) std::cout << "WRITE FAIL\n";
 
-    // buf[0] = '\0';
-    // rc = do_read(0, buf, wifs::ReadReq_Crash_NO_CRASH);
-    // if (rc == -1) std::cout << "READ FAIL\n";
+    buf[0] = '\0';
+    rc = do_read(0, buf, wifs::ReadReq_Crash_NO_CRASH);
+    if (rc == -1) std::cout << "READ FAIL\n";
 
-    // buf[BLOCK_SIZE] = '\0';
-    // printf("read first char - %c\n", buf[0]);
+    buf[BLOCK_SIZE] = '\0';
+    printf("read first char - %c\n", buf[0]);
 
     // rc = do_read(1, buf, wifs::ReadReq_Crash_NO_CRASH);
     // if (rc == -1) std::cout << "READ FAIL\n";
@@ -49,7 +45,7 @@ void just_read() {
 }
 
 int main(int argc, char* argv[]) {
-    if(!strcmp(argv[1], "1")) write_crash('x', 'y');
+    if(!strcmp(argv[1], "1")) write_crash('a', 'b');
     else just_read();
     return 0;
 }

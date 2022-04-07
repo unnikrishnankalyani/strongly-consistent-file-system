@@ -99,7 +99,7 @@ int do_write(int address, char* buf, wifs::WriteReq_Crash crash_mode) {
     //std::cout << "Write Return code: " << rc << std::endl;
     // call goes through, just return
     if (!rc) return 0;
-    kill(getpid(), SIGKILL);
+    // kill(getpid(), SIGKILL);
     if (rc < 0) {  // call failed
         switch_primary(primary_index);
         single_server = 1;

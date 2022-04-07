@@ -169,7 +169,7 @@ void local_write(void) {
         node->promise_obj.set_value(rc);
 
         if(node->req->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_AFTER_LOCAL_WRITE_BEFORE_REMOTE) {
-            std::cout<<"killing primary after local write, didn't send to remote\n";
+            // std::cout<<"killing primary after local write, didn't send to remote\n";
             killserver();
         }
     }
@@ -260,7 +260,11 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
     }
 
     Status Write(ServerContext* context, const WriteRequest* request, WriteResponse* reply) {
-        if(request->crash_mode() == primarybackup::WriteRequest_Crash_BACKUP_CRASH_BEFORE_WRITE) killserver();
+        if(request->crash_mode() == primarybackup::WriteRequest_Crash_BACKUP_CRASH_BEFORE_WRITE) {
+            std::cout<<"killing backup before write\n";
+            killserver();
+        }
+        
         start_transition_log(*request);
         std::promise<int> promise_obj;
         std::future<int> future_obj = promise_obj.get_future();
