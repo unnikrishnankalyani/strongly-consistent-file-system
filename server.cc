@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 #include <csignal>
@@ -61,6 +62,8 @@ std::string other_node_wifs_address;
 std::string primary = "";
 
 int server_id = 0;
+
+struct timeval recovery_begin, recovery_end;
 
 // semaphore for checking if write queue has elements to read
 sem_t sem_queue;
@@ -561,6 +564,8 @@ void init_all_node_addresses() {
 }
 
 int main(int argc, char** argv) {
+    gettimeofday(&recovery_begin, 0);
+
     srand(time(NULL));
 
     sem_init(&sem_queue, 0, 0);
@@ -583,6 +588,13 @@ int main(int argc, char** argv) {
     init_connection_with_other_node();
 
     update_state_to_latest(0);
+    gettimeofday(&recovery_end, 0);
+
+    long seconds = recovery_end.tv_sec - recovery_begin.tv_sec;
+    long microseconds = recovery_end.tv_usec - recovery_begin.tv_usec;
+    double elapsed = seconds + microseconds*1e-6;
+    
+    printf("recovery time = %lf\n", elapsed);
 
     //std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);
