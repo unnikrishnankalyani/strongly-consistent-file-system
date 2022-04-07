@@ -594,7 +594,7 @@ int main(int argc, char** argv) {
     long microseconds = recovery_end.tv_usec - recovery_begin.tv_usec;
     double elapsed = seconds + microseconds*1e-6;
     
-    printf("recovery time = %lf\n", elapsed);
+    // printf("recovery time = %lf\n", elapsed);
 
     //std::cout << "synced to latest state\n";
     std::thread writer_thread(local_write);
