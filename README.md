@@ -20,6 +20,8 @@ Run the below commands to compile the executables on both servers
 
 ## Execution
 
+To run one end-to-end test without any manual steps, skip to the Testing section.
+
 On the server specified in `server_1` earlier, cd into the `cmake/build` directory and run the command `./server 1`
 On the server specified in `server_2` earlier, cd into the `cmake/build` directory and run the command `./server 2`
 
@@ -39,3 +41,6 @@ BACKUP_CRASH_BEFORE_WRITE = 5;
 BACKUP_CRASH_AFTER_WRITE = 6;
 NODE_CRASH_READ = 7;
 ```
+### End-to-end test
+
+To run an end-to-end test that starts both servers, performs sequences of reads and writes (random data), verifies the checksums of the obtained data and kills the servers - run `python end_to_end_test.py` in the `tests` folder. Remember to kill any running servers on the same node to avoid undefined behavior.
