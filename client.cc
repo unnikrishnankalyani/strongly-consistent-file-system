@@ -122,15 +122,25 @@ int do_write(int address, char* buf, wifs::WriteReq_Crash crash_mode) {
         //std::cout << "Null value for WIFSclient. Exiting" <<std::endl;
         return -1;
     }
+    long seconds = begin.tv_sec;
+    double microseconds = (double) begin.tv_sec + begin.tv_usec * 1e-6;
+    double elapsed;
+    printf("sending write at %lf\n", microseconds);
     int rc = options.wifsclient[primary_index]->wifs_WRITE(address, buf, crash_mode);
     //std::cout << "Write Return code: " << rc << std::endl;
     // call goes through, just return
     gettimeofday(&end, 0);
-    long seconds = end.tv_sec - begin.tv_sec;
-    long microseconds = end.tv_usec - begin.tv_usec;
-    double elapsed = seconds + microseconds*1e-6;
+    seconds = end.tv_sec - begin.tv_sec;
+    microseconds = end.tv_usec - begin.tv_usec;
+    elapsed = seconds + microseconds*1e-6;
+    
     //std::cout << elapsed << std::endl;
-    if (!rc) return 0;
+    if (!rc) {
+        gettimeofday(&begin, 0);
+        microseconds = (double) begin.tv_sec + begin.tv_usec * 1e-6;
+        printf("received resp from primary at %lf\n", microseconds);
+        return 0;
+    }
 
     if (rc < 0) {  // call failed
         switch_primary(primary_index);
@@ -144,6 +154,9 @@ int do_write(int address, char* buf, wifs::WriteReq_Crash crash_mode) {
         single_server = 0;
         //std::cout << "Changed PRIMARY: " << primary_server << std::endl;
         //std::cout << "Repeating WRITE" << std::endl;
+        gettimeofday(&begin, 0);
+        microseconds = (double) begin.tv_sec + begin.tv_usec * 1e-6;
+        printf("received resp from backup at %lf\n", microseconds);
         return do_write(address, buf, crash_mode);
     }
 

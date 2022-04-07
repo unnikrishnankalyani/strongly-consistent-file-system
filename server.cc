@@ -247,6 +247,11 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
     }
 
     Status Write(ServerContext* context, const WriteRequest* request, WriteResponse* reply) {
+        struct timeval begin, end;
+        gettimeofday(&begin, 0);
+        double microseconds = (double) begin.tv_sec + begin.tv_usec * 1e-6;
+        printf("received internal write req at %lf\n", microseconds);
+
         if(request->crash_mode() == primarybackup::WriteRequest_Crash_BACKUP_CRASH_BEFORE_WRITE) killserver();
         start_transition_log(*request);
         std::promise<int> promise_obj;
@@ -264,6 +269,10 @@ class PrimarybackupServiceImplementation final : public PrimaryBackup::Service {
 
         if(request->crash_mode() == primarybackup::WriteRequest_Crash_BACKUP_CRASH_AFTER_WRITE) killserver();
         
+        gettimeofday(&begin, 0);
+        microseconds = (double) begin.tv_sec + begin.tv_usec * 1e-6;
+        printf("replying to internal write req at %lf\n", microseconds);
+
         return Status::OK;
     }
 
@@ -332,10 +341,21 @@ class WifsServiceImplementation final : public WIFS::Service {
         // check if this is primary or not, and then only do the write.
         std::string local_election_state = get_election_state_value();
         if (local_election_state != "PRIMARY") {
+
+            struct timeval begin, end;
+            gettimeofday(&begin, 0);
+            double microseconds = (double) begin.tv_sec + begin.tv_usec * 1e-6;
+            printf("backup replying at %lf\n", microseconds);
+
             reply->set_status(wifs::WriteRes_Status_RETRY);  // retry with the primary IP provided in the next line
             reply->set_primary_ip(other_node_wifs_address);
             return Status::OK;
         }
+
+        struct timeval begin, end;
+        gettimeofday(&begin, 0);
+        double microseconds = (double) begin.tv_sec + begin.tv_usec * 1e-6;
+        printf("received write req at %lf\n", microseconds);
 
         reply->set_status(wifs::WriteRes_Status_FAIL);
         if (append_write_request(request) == -1) return Status::OK;
@@ -344,6 +364,10 @@ class WifsServiceImplementation final : public WIFS::Service {
         // crash after local write and after remote write
         if(request->crash_mode() == wifs::WriteReq_Crash_PRIMARY_CRASH_AFTER_LOCAL_WRITE_AFTER_REMOTE) killserver();
         
+        gettimeofday(&begin, 0);
+        microseconds = (double) begin.tv_sec + begin.tv_usec * 1e-6;
+        printf("replying to write req at %lf\n", microseconds);
+
         return Status::OK;
     }
 
