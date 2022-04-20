@@ -1,11 +1,19 @@
 #include <grpcpp/grpcpp.h>
+
+#include <iostream>
+#include <aws/core/Aws.h>
+#include <aws/s3/S3Client.h>
+#include <aws/s3/model/Bucket.h>
+#include <aws/s3/model/CreateBucketConfiguration.h>
+#include <aws/s3/model/CreateBucketRequest.h>
+#include <aws/s3/model/DeleteBucketRequest.h>
+
 #include <sys/stat.h>
 #include <time.h>
 
-#include <iostream>
-
 #include "client.cc"
 #include "wifs.grpc.pb.h"
+
 
 void tester() {
     char buf[BLOCK_SIZE + 1];
@@ -29,6 +37,25 @@ void tester() {
 }
 
 int main(int argc, char* argv[]) {
-    tester();
+    Aws::SDKOptions options;
+    Aws::InitAPI(options);
+    {
+        Aws::Client::ClientConfiguration clientConfig;
+        clientConfig.region = "us-east-1";
+        clientConfig.endpointOverride = "http://c220g1-030604.wisc.cloudlab.us:4566";
+        Aws::S3::S3Client client(clientConfig);
+
+        auto outcome = client.ListBuckets();
+        if (outcome.IsSuccess()) {
+            std::cout << "Found " << outcome.GetResult().GetBuckets().size() << " buckets\n";
+            for (auto&& b : outcome.GetResult().GetBuckets()) {
+                std::cout << b.GetName() << std::endl;
+            }
+        }
+        else {
+            std::cout << "Failed with error: " << outcome.GetError() << std::endl;
+        }
+    }
+
     return 0;
 }

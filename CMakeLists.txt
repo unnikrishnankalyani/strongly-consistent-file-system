@@ -104,6 +104,10 @@ target_link_libraries(server
   ${_GRPC_GRPCPP}
   ${_PROTOBUF_LIBPROTOBUF})
 
+set(AWSSDK_ROOT_DIR, "/usr/local/")
+set(BUILD_SHARED_LIBS ON)
+find_package(AWSSDK REQUIRED COMPONENTS s3)
+
 # client manual, easy for manual testing. spin up server and then client
 add_executable(client_manual "client_manual.cc")
 target_link_libraries(client_manual
@@ -111,4 +115,5 @@ target_link_libraries(client_manual
   wifs_grpc_proto
   ${_REFLECTION}
   ${_GRPC_GRPCPP}
-  ${_PROTOBUF_LIBPROTOBUF})
+  ${_PROTOBUF_LIBPROTOBUF}
+  ${AWSSDK_LINK_LIBRARIES})
