@@ -2,6 +2,7 @@
 
 This is an implementation of a distributed highly-available file system. All server logic is present in `server.cc` while the client-side library is defined in `client.cc` and `WifsClient.h`. 
 
+
 ## Set-up
 
 To set-up the client, update the `server_1` and `server_2` fields in `commonheaders.h`.
